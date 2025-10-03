@@ -10,7 +10,7 @@ class User(Base):
 
     full_name: Mapped[str] = mapped_column(VARCHAR(256), nullable=False)
     email: Mapped[str] = mapped_column(VARCHAR(256), nullable=False, unique=True)
-    hashed_password: Mapped[str] = mapped_column(VARCHAR(64), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(nullable=False)
     age: Mapped[int] = mapped_column(nullable=False)
 
     # relationships

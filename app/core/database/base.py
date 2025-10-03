@@ -12,6 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import RelationshipProperty
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 
 from sqlalchemy.orm import (
     mapped_column,
@@ -68,6 +70,8 @@ What it is: Objects that contain or can produce SQL clause elements
 Example: Hybrid properties, custom SQL expressions
 Use case: Custom properties that generate SQL when accessed
 """
+
+
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
     def select_(
@@ -140,6 +144,10 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         return foreign_cols
 
     @classmethod
+    def get_columns(cls):
+        return {_column.name for _column in inspect(cls).c}
+
+    @classmethod
     async def create(
         cls,
         session: AsyncSession,
@@ -201,3 +209,134 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         result = await session.scalar(statement)
 
         return result
+
+    @classmethod
+    async def upsert_one(
+        cls,
+        session: AsyncSession,
+        data: BaseModel,
+        index_elements: list[InstrumentedAttribute | str] | None = None,
+        /,
+        *,
+        commit: bool = True,
+    ):
+        try:
+            if not index_elements:
+                index_elements = ["id"]
+
+            data_dict = data.model_dump(exclude_none=True, by_alias=False)
+
+            data_keys = set(data_dict.keys())
+            index_keys = set(index_elements)
+            missing_keys = index_keys - data_keys
+
+            if missing_keys:
+                raise ValueError(
+                    f"Data must include all index elements. Missing: {missing_keys}"
+                )
+
+            if len(data_keys - index_keys) == 0:
+                raise ValueError(
+                    "Index elements match all data fields, upsert is invalid."
+                )
+
+            stmt = pg_insert(cls).values(data_dict)
+
+            updated_columns = {
+                key: getattr(stmt.excluded, key)
+                for key in data_dict.keys()
+                if key not in index_elements
+            }
+
+            stmt = stmt.on_conflict_do_update(
+                index_elements=index_elements, set_=updated_columns
+            )
+
+            result = await session.scalar(stmt.returning(cls))
+
+            if commit:
+                await session.commit()
+
+            return result
+        except IntegrityError as e:
+            await session.rollback()
+
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
+            raise e
+
+    @classmethod
+    async def upsert_many(
+        cls,
+        session: AsyncSession,
+        data: list[BaseModel],
+        index_elements: list[InstrumentedAttribute | str] | None = None,
+        /,
+        *,
+        commit: bool = True,
+    ):
+        try:
+            if not index_elements:
+                index_elements = [cls.id]
+
+            index_elements = [
+                col.name if isinstance(col, InstrumentedAttribute) else str(col)
+                for col in index_elements
+            ]
+            data_values = [
+                item.model_dump(exclude_none=True, by_alias=False) for item in data
+            ]
+
+            data_model_fields = data[0].__class__.model_fields
+            data_keys = set(data_model_fields.keys())
+            index_keys = set(index_elements)
+
+            # if all keys in data match with index_elements, then the operation is invalid
+            # because there are no distinctions that could be used for the on conflict clause.
+            if len(data_keys - index_keys) == 0:
+                raise ValueError(
+                    "Index elements match all model fields, upsert is invalid."
+                )
+            #  if no key in index_elements exists in data, then the operation is invalid
+            missing_keys = index_keys - data_keys
+            if missing_keys:
+                raise ValueError(
+                    f"Data passed must include the indexed_elements to handle conflicts. Missing: {missing_keys}"
+                )
+
+            stmt = pg_insert(cls).values(data_values)
+
+            updated_columns = {
+                key: getattr(stmt.excluded, key)
+                # Use the first data object's keys
+                for key in data_values[0].keys()
+                if key not in index_elements  # Ensure index elements are not updated
+            }
+
+            stmt = stmt.on_conflict_do_update(
+                index_elements=index_elements, set_=updated_columns
+            )
+
+            updated_or_created_data = await session.scalars(
+                stmt.returning(cls),
+                execution_options={"populate_existing": True},
+            )
+
+            if commit:
+                await session.commit()
+
+            result = updated_or_created_data.all()
+
+            return result
+        except IntegrityError as e:
+            await session.rollback()
+
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
+            raise e

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import ClassVar, Self
+from typing import ClassVar, Self, Union
 from pydantic import BaseModel
 from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from .utils import CreateModelRelations
+
 
 class BaseModelDatabaseMixin(BaseModel, ABC):
     model: ClassVar[type[Base]]
@@ -20,8 +21,8 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
         *,
         commit: bool = True,
         return_as_base: bool = False,
-        exclude_relations=False,
-    ):
+        exclude_relations=True,
+    ) -> Union[Self | type[Base]]:
         try:
             if exclude_relations:
                 result = await cls.model.create(session, data, commit=commit)
@@ -37,7 +38,7 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
 
             if return_as_base:
                 return result
-            
+
             return cls.model_validate(result, from_attributes=True)
         except Exception as e:
             raise e
@@ -52,7 +53,7 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
         field: InstrumentedAttribute | None = None,
         where_clause: list[ColumnElement[bool]] | None = None,
         return_as_base: bool = False,
-    ) -> Self:
+    ) -> Union[Self | type[Base]]:
         result: Base = await cls.model.get_one(
             session, val, field=field, where_clause=where_clause
         )
@@ -62,3 +63,55 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
         if return_as_base:
             return result
         return cls.model_validate(result, from_attributes=True)
+
+    @classmethod
+    async def upsert_one(
+        cls,
+        session: AsyncSession,
+        data: Union[dict, BaseModel],
+        index_elements: list[InstrumentedAttribute | str] | None = None,
+        /,
+        *,
+        commit: bool = True,
+        return_as_base: bool = False,
+    ) -> Union[Self | type[Base]]:
+        if isinstance(data, dict):
+            try:
+                data = cls.model_validate(data, from_attributes=True)
+            except Exception as e:
+                raise e
+
+        result = await cls.model.upsert_one(
+            session, data, index_elements, commit=commit
+        )
+
+        if return_as_base:
+            return result
+
+        return cls.model_validate(result, from_attributes=True)
+
+    @classmethod
+    async def upsert_many(
+        cls,
+        session: AsyncSession,
+        data: Union[list[dict] | list[BaseModel]],
+        index_elements: list[InstrumentedAttribute | str] | None = None,
+        /,
+        *,
+        commit: bool = True,
+        return_as_base: bool = False,
+    ) -> Union[list[Self] | list[type[Base]]]:
+        if isinstance(data[0], dict):
+            try:
+                data = [cls.model_validate(item, from_attributes=True) for item in data]
+            except Exception as e:
+                raise e
+
+        result = await cls.model.upsert_many(
+            session, data, index_elements, commit=commit
+        )
+
+        if return_as_base:
+            return result
+
+        return [cls.model_validate(item, from_attributes=True) for item in result]
