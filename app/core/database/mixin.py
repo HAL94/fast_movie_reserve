@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from .utils import CreateModelRelations
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 
 class BaseModelDatabaseMixin(BaseModel, ABC):
@@ -52,13 +53,17 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
         *,
         field: InstrumentedAttribute | None = None,
         where_clause: list[ColumnElement[bool]] | None = None,
+        options: list[_AbstractLoad] | None = None,
         return_as_base: bool = False,
-    ) -> Union[Self | type[Base]]:
+        raise_not_found: bool = True
+    ) -> Self:
         result: Base = await cls.model.get_one(
-            session, val, field=field, where_clause=where_clause
+            session, val, field=field, where_clause=where_clause, options=options
         )
-        if not result:
+        if not result and raise_not_found:
             raise HTTPException(status_code=404, detail="Not found")
+        if not result:
+            return None
 
         if return_as_base:
             return result

@@ -12,15 +12,14 @@ from .data import (
     roles_data,
     admin_user,
 )
-import bcrypt
+from pwdlib import PasswordHash
 import traceback
 
-
-logging.basicConfig(level=logging.INFO)
+password_hash = PasswordHash.recommended()
 logger = logging.getLogger(__name__)
 
 def create_hashed_pw(password: str):
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return password_hash.hash(password)
 
 
 async def start_seeder():

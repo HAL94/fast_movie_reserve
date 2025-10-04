@@ -1,16 +1,18 @@
 from datetime import datetime
 import random
 
+from app.schema.role import UserRoles
+
 # --- Role Data ---
 roles_data = [
     {
         "id": 1,
-        "role_name": "admin",
+        "role_name": UserRoles.ADMIN,
         "created_at": datetime.now()
     },
     {
         "id": 2,
-        "role_name": "regular_user",
+        "role_name": UserRoles.REGULAR_USER,
         "created_at": datetime.now()
     },
 ]

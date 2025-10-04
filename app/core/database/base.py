@@ -13,6 +13,7 @@ from asyncpg.exceptions import ForeignKeyViolationError, UniqueViolationError
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 
 from sqlalchemy.orm import (
@@ -189,9 +190,10 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         /,
         *,
         field: InstrumentedAttribute | str | None = None,
+        options: list[_AbstractLoad] = None,
         where_clause: list[ColumnElement[bool]] = None,
     ):
-        options = cls.get_options()
+        base_options = cls.get_options()
 
         if field is None:
             field = cls.id
@@ -202,6 +204,9 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             where_base.extend(where_clause)
 
         statement: Select = cls.select_(cls).where(*where_base)
+
+        if base_options:
+            statement = statement.options(*base_options)
 
         if options:
             statement = statement.options(*options)

@@ -1,11 +1,12 @@
-from app.core.database.mixin import BaseModelDatabaseMixin
 from typing import ClassVar, Optional
+from app.core.database.mixin import BaseModelDatabaseMixin
 from app.models import User as UserModel
+
 
 class UserBase(BaseModelDatabaseMixin):
     model: ClassVar[type[UserModel]] = UserModel
 
-    id: Optional[int]
+    id: Optional[int] = None
     full_name: str
     email: str
     age: int

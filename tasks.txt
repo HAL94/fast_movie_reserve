@@ -1,0 +1,23 @@
+Main Objective
+	- a system that allows users to reserve movies tickets
+
+System Functionalities
+	- User Authentication/Authoriation
+	- Movie and Showtime management
+	- Seat Reservation
+	- Reporting a reservation
+Roles:
+	- System Admin: manages movies CRUD, and show-times.
+	- Regular / Customer User: reserves seat for a show time
+
+Movie Management:
+	- Add, update, and delete movies.
+	- Movie should have a title, description and a poster image.
+	- Movies should be categorized by genre.
+	- Movie should have showtimes.
+
+Reservation Management (Regular and Admin User):
+	- Get movie details, show-times for a specific date.
+	- Reserve seats for a show-time, see available seats.
+	- See reservations and/or cancel upcoming reservation.
+	- Admin user should be able to see all reservations, capacity and revenue.
