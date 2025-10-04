@@ -6,7 +6,7 @@ from .reservation import Reservation
 from .seat import Seat
 from .theatre import Theatre
 from .showtime import Showtime
-from .role import Role
+from .role import Role, UserRoles
 
 __all__ = [
     Genre,
@@ -19,4 +19,5 @@ __all__ = [
     Theatre,
     Showtime,
     Role,
+    UserRoles
 ]

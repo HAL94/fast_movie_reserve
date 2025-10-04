@@ -1,5 +1,5 @@
 from .user_base import UserBase, UserCreate
-from .utils import UserCredentials, SigninResult
+from .utils import UserCredentials, SigninResult, SignupRequest
 
 
-__all__ = [UserBase, UserCredentials, SigninResult, UserCreate]
+__all__ = [UserBase, UserCredentials, SigninResult, UserCreate, SignupRequest]

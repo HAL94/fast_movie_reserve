@@ -15,11 +15,20 @@ class CookieSigner:
 
     def loads(self, signed_data: Any, max_age: int | None = None) -> Any:
         try:
-            data: dict[str, Any] = self.signer.loads(signed_data, max_age=max_age)
+            data = self.signer.loads(signed_data, max_age=max_age)
             return data
         except SignatureExpired:
             raise HTTPException(status_code=401, detail="Cookie has expired")
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid cookie signature")
 
+
 cookie_signer = CookieSigner()
+
+
+def get_cookie_signer():
+    global cookie_signer
+    if not cookie_signer:
+        cookie_signer = CookieSigner()
+
+    return cookie_signer

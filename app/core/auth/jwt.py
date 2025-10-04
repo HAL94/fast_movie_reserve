@@ -9,6 +9,7 @@ from app.core.auth.schema import JwtPayload
 from app.core.config import settings
 from app.core.auth.cookie import cookie_signer
 from app.core.database.session import get_async_session
+from app.schema.role import UserRoles
 from app.schema.user import UserBase
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ class JwtAuth:
 
     @classmethod
     def encode(cls, data: JwtPayload) -> str:
+        """Encode some object with application Secret and Algorithm"""
         try:
             return jwt.encode(
                 data.model_dump(), JwtAuth.SECRET_KEY, algorithm=JwtAuth.ALOGIRTHM
@@ -38,7 +40,9 @@ class JwtAuth:
             raise e
 
     @classmethod
-    async def validate_token(cls, session: AsyncSession, token: AccessToken) -> dict:
+    async def validate_token(
+        cls, session: AsyncSession, token: AccessToken, role: UserRoles | None = None
+    ) -> dict:
         """Validate a JWT token and return payload"""
         unauth_exc = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -56,6 +60,10 @@ class JwtAuth:
             )
 
             if not payload.id:
+                raise unauth_exc
+
+            if role and payload.role != role:
+                unauth_exc.detail = "Validation failed, missing role"
                 raise unauth_exc
 
             user_data = await UserBase.get_one(session, payload.id)
@@ -77,11 +85,16 @@ async def get_token_cookie(request: Request) -> AccessToken:
         raise HTTPException(status_code=401) from e
 
 
-async def validate_jwt(
-    token: str = Depends(get_token_cookie),
-    session: AsyncSession = Depends(get_async_session),
-):
-    try:
-        return await JwtAuth.validate_token(session, token)
-    except Exception as e:
-        raise HTTPException(status_code=401) from e
+class ValidateJwt:
+    def __init__(self, role: UserRoles | None = None):
+        self.role = role
+
+    async def __call__(
+        self,
+        token: str = Depends(get_token_cookie),
+        session: AsyncSession = Depends(get_async_session),
+    ):
+        try:
+            return await JwtAuth.validate_token(session, token, self.role)
+        except Exception as e:
+            raise HTTPException(status_code=401) from e

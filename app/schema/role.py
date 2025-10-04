@@ -1,6 +1,6 @@
 
 from enum import StrEnum
-from typing import ClassVar, Optional
+from typing import ClassVar
 from app.models import Role as RoleModel
 from app.core.database.mixin import BaseModelDatabaseMixin
 
@@ -11,5 +11,5 @@ class UserRoles(StrEnum):
 class Role(BaseModelDatabaseMixin):
     model: ClassVar[type[RoleModel]] = RoleModel
 
-    id: Optional[int]
+    id: int
     role_name: str
