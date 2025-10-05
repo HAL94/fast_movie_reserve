@@ -26,6 +26,8 @@ from sqlalchemy.orm.decl_api import (
 )
 from datetime import datetime
 
+from app.core.pagination import PaginatedResult
+
 
 class DeclarativeBaseNoMeta(_DeclarativeBaseNoMeta):
     pass
@@ -106,6 +108,13 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         server_default=func.now(),
         nullable=False,
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(
+            timezone=True,
+        ),
+        server_default=func.now(),
+        nullable=False,
+    )
 
     def dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -145,7 +154,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         return foreign_cols
 
     @classmethod
-    def get_columns(cls):
+    def columns(cls):
         return {_column.name for _column in inspect(cls).c}
 
     @classmethod
@@ -180,6 +189,86 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
                 raise ValueError("Foreig Key Constraint is violated")
 
+            raise e
+
+    @classmethod
+    async def get_many(
+        cls,
+        session: AsyncSession,
+        /,
+        *,
+        page: int,
+        size: int,
+        where_clause: list[ColumnElement[bool]] | None = None,
+        order_clause: list[InstrumentedAttribute] | None = None,
+        options: list[_AbstractLoad] | None = None,
+    ):
+        try:
+            statement = select(cls)
+            where_base = []
+
+            if where_clause:
+                where_base.extend(where_clause)
+
+            statement = statement.where(*where_base)
+
+            if order_clause:
+                statement = statement.order_by(*order_clause)
+
+            total_count = await session.scalar(
+                select(func.count()).select_from(
+                    select(cls).where(*where_base).subquery()
+                )
+            )
+            base_options = cls.get_select_in_load()
+            if base_options:
+                statement = statement.options(*base_options)
+
+            if options:
+                statement = statement.options(*options)
+
+            statement = statement.offset((page - 1) * size).limit(size)
+
+            result = await session.scalars(statement)
+
+            return PaginatedResult(
+                result=result, size=size, page=page, total_records=total_count
+            )
+        except Exception as e:
+            raise e
+
+    @classmethod
+    async def get_all(
+        cls,
+        session: AsyncSession,
+        /,
+        *,
+        where_clause: list[ColumnElement[bool]] = None,
+        order_clause: list[InstrumentedAttribute] = [],
+        options: list[_AbstractLoad] | None = None,        
+    ):
+        try:
+            statement = select(cls)
+            where_base = []
+
+            if where_clause:
+                where_base.extend(where_clause)
+
+            statement = statement.where(*where_base)
+
+            if order_clause:
+                statement = statement.order_by(*order_clause)
+
+            base_options = cls.get_options()
+
+            if base_options:
+                statement = statement.options(*base_options)
+
+            if options:
+                statement = statement.options(*options)
+
+            return await session.scalars(statement)
+        except Exception as e:
             raise e
 
     @classmethod

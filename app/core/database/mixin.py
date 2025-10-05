@@ -1,6 +1,9 @@
 from abc import ABC
 from typing import ClassVar, Self, Union
 from pydantic import BaseModel
+
+from app.core.pagination.factory import PaginationQuery
+from app.core.schema import AppBaseModel
 from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -10,7 +13,7 @@ from .utils import CreateModelRelations
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 
-class BaseModelDatabaseMixin(BaseModel, ABC):
+class BaseModelDatabaseMixin(AppBaseModel, ABC):
     model: ClassVar[type[Base]]
 
     @classmethod
@@ -45,6 +48,58 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
             raise e
 
     @classmethod
+    async def get_all(
+        cls,
+        session: AsyncSession,
+        /,
+        *,
+        pagination: PaginationQuery | None = None,
+        where_clause: list[ColumnElement[bool]] | None = None,
+        order_clause: list[InstrumentedAttribute] | None = None,
+        options: list[_AbstractLoad] | None = None,
+        return_as_base: bool = False,
+    ):
+        try:
+            if pagination.skip:
+                result = await cls.model.get_all(
+                    session,
+                    where_clause=where_clause,
+                    order_clause=order_clause,
+                    options=options,
+                )
+                if return_as_base:
+                    return result
+
+                return [
+                    cls.model_validate(item, from_attributes=True) for item in result
+                ]
+            else:
+                pagination_where_clause = pagination.filter_fields
+                order_clause = pagination.sort_fields
+                page = pagination.page
+                size = pagination.size
+
+                paginated_result = await cls.model.get_many(
+                    session,
+                    page=page,
+                    size=size,
+                    where_clause=pagination_where_clause,
+                    order_clause=order_clause,
+                )
+                if return_as_base:
+                    return paginated_result
+
+                result = paginated_result.result
+                paginated_result.result = [
+                    cls.model_validate(item, from_attributes=True) for item in result
+                ]
+
+                return paginated_result
+
+        except Exception as e:
+            raise e
+
+    @classmethod
     async def get_one(
         cls,
         session: AsyncSession,
@@ -55,7 +110,7 @@ class BaseModelDatabaseMixin(BaseModel, ABC):
         where_clause: list[ColumnElement[bool]] | None = None,
         options: list[_AbstractLoad] | None = None,
         return_as_base: bool = False,
-        raise_not_found: bool = True
+        raise_not_found: bool = True,
     ) -> Self:
         result: Base = await cls.model.get_one(
             session, val, field=field, where_clause=where_clause, options=options
