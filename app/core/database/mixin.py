@@ -74,7 +74,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                     cls.model_validate(item, from_attributes=True) for item in result
                 ]
             else:
-                pagination_where_clause = pagination.filter_fields
+                where_clause = pagination.filter_fields
                 order_clause = pagination.sort_fields
                 page = pagination.page
                 size = pagination.size
@@ -83,7 +83,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                     session,
                     page=page,
                     size=size,
-                    where_clause=pagination_where_clause,
+                    where_clause=where_clause,
                     order_clause=order_clause,
                 )
                 if return_as_base:
@@ -161,6 +161,9 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         commit: bool = True,
         return_as_base: bool = False,
     ) -> Union[list[Self] | list[type[Base]]]:
+        if not data or len(data) == 0:
+            return []
+        
         if isinstance(data[0], dict):
             try:
                 data = [cls.model_validate(item, from_attributes=True) for item in data]

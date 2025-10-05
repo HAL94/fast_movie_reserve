@@ -27,14 +27,14 @@ async def start_seeder():
 
     try:
         async with session_manager.session() as session:
-            movies_index = ["id"]
-            await Movie.upsert_many(session, movies_data, movies_index)
+            # movies_index = ["id"]
+            # await Movie.upsert_many(session, movies_data, movies_index)
 
-            genres_index = ["id"]
-            await Genre.upsert_many(session, genres_data, genres_index)
+            # genres_index = ["id"]
+            # await Genre.upsert_many(session, genres_data, genres_index)
 
-            movie_genre_index = ["id", "movie_id", "genre_id"]
-            await MovieGenre.upsert_many(session, movie_genre_data, movie_genre_index)
+            # movie_genre_index = ["id", "movie_id", "genre_id"]
+            # await MovieGenre.upsert_many(session, movie_genre_data, movie_genre_index)
 
             theatre_index = ["id"]
             await Theatre.upsert_many(session, theatres_data, theatre_index)
