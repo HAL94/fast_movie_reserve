@@ -1,8 +1,8 @@
 """init_models
 
-Revision ID: ede9bc506fdb
+Revision ID: 55e22b4f5436
 Revises: 
-Create Date: 2025-10-05 21:06:54.408969
+Create Date: 2025-10-06 13:54:18.214469
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'ede9bc506fdb'
+revision: str = '55e22b4f5436'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -62,9 +62,10 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['genre_id'], ['genres.id'], ),
-    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
-    sa.PrimaryKeyConstraint('movie_id', 'genre_id', 'id')
+    sa.ForeignKeyConstraint(['genre_id'], ['genres.id'], ondelete='cascade'),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ondelete='cascade'),
+    sa.PrimaryKeyConstraint('movie_id', 'genre_id', 'id'),
+    sa.UniqueConstraint('movie_id', 'genre_id', name='unique_movie_genre')
     )
     op.create_table('seats',
     sa.Column('theatre_id', sa.Integer(), nullable=False),

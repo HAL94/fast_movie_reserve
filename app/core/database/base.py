@@ -1,5 +1,5 @@
-from typing import Callable, Any, override, Dict, Union
-from sqlalchemy import Select, select, func, DateTime, Column
+from typing import Callable, Any, Literal, override, Dict, Union
+from sqlalchemy import Select, delete, select, func, DateTime, Column, update
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
 from sqlalchemy.inspection import Inspectable
@@ -245,7 +245,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         *,
         where_clause: list[ColumnElement[bool]] = None,
         order_clause: list[InstrumentedAttribute] = [],
-        options: list[_AbstractLoad] | None = None,        
+        options: list[_AbstractLoad] | None = None,
     ):
         try:
             statement = select(cls)
@@ -305,6 +305,105 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         return result
 
     @classmethod
+    async def update_one(
+        cls,
+        session: AsyncSession,
+        data: Union[BaseModel, dict],
+        /,
+        *,
+        where_clause: list[ColumnElement[bool]] | None = None,
+        commit: bool = True,
+    ):
+        if not where_clause:
+            raise ValueError("must pass where_clause")
+
+        if isinstance(data, BaseModel):
+            data = data.model_dump(
+                exclude_unset=True, exclude_none=True, by_alias=False
+            )
+
+        updated_model = await session.scalar(
+            update(cls).values(data).filter(*where_clause).returning(cls)
+        )
+
+        if commit:
+            await session.commit()
+
+        return updated_model
+
+    @classmethod
+    async def delete_one(
+        cls,
+        session: AsyncSession,
+        val: Any,
+        /,
+        *,
+        field: InstrumentedAttribute | None = None,
+        where_clause: list[ColumnElement[bool]] = None,
+        commit: bool = True,
+    ):
+        try:
+            if field is None:
+                field = cls.id
+
+            if val is None:
+                raise ValueError("Passed 'None' as 'val'")
+
+            where_cond = [field == val]
+
+            if where_clause:
+                where_cond.extend(where_clause)
+
+            result = await session.scalar(delete(cls).where(*where_cond).returning(cls))
+
+            if commit:
+                await session.commit()
+
+            return result
+
+        except IntegrityError as e:
+            await session.rollback()
+
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
+            raise e
+
+    @classmethod
+    async def delete_many(
+        cls,
+        session: AsyncSession,
+        where_clause: list[ColumnElement],
+        /,
+        *,
+        commit: bool = True,
+    ):
+        try:
+            if not where_clause:
+                raise ValueError("'where_cluse' must be passed")
+
+            result = await session.scalars(
+                delete(cls).where(*where_clause).returning(cls)
+            )
+
+            if commit:
+                await session.commit()
+
+            result = result.all()
+
+            return result
+        except IntegrityError as e:
+            await session.rollback()
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
+            raise e
+
+    @classmethod
     async def upsert_one(
         cls,
         session: AsyncSession,
@@ -313,6 +412,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         /,
         *,
         commit: bool = True,
+        on_conflict: Literal["do_nothing", "do_update"] = "do_update",
     ):
         try:
             if not index_elements:
@@ -336,15 +436,18 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             stmt = pg_insert(cls).values(data_dict)
 
-            updated_columns = {
-                key: getattr(stmt.excluded, key)
-                for key in data_dict.keys()
-                if key not in index_elements
-            }
+            if on_conflict == "do_update":
+                updated_columns = {
+                    key: getattr(stmt.excluded, key)
+                    for key in data_dict.keys()
+                    if key not in index_elements
+                }
 
-            stmt = stmt.on_conflict_do_update(
-                index_elements=index_elements, set_=updated_columns
-            )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=index_elements, set_=updated_columns
+                )
+            else:
+                stmt = stmt.on_conflict_do_nothing(index_elements=index_elements)
 
             result = await session.scalar(stmt.returning(cls))
 
@@ -371,6 +474,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         /,
         *,
         commit: bool = True,
+        on_conflict: Literal["do_nothing", "do_update"] = "do_update",
     ):
         try:
             if not index_elements:
@@ -403,16 +507,19 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             stmt = pg_insert(cls).values(data_values)
 
-            updated_columns = {
-                key: getattr(stmt.excluded, key)
-                # Use the first data object's keys
-                for key in data_values[0].keys()
-                if key not in index_elements  # Ensure index elements are not updated
-            }
-
-            stmt = stmt.on_conflict_do_update(
-                index_elements=index_elements, set_=updated_columns
-            )
+            if on_conflict == "do_nothing":
+                stmt = stmt.on_conflict_do_nothing(index_elements=index_elements)
+            else:
+                updated_columns = {
+                    key: getattr(stmt.excluded, key)
+                    # Use the first data object's keys
+                    for key in data_values[0].keys()
+                    if key
+                    not in index_elements  # Ensure index elements are not updated
+                }
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=index_elements, set_=updated_columns
+                )
 
             updated_or_created_data = await session.scalars(
                 stmt.returning(cls),

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
-from app.schema.movie import Movie, MovieCreate
+from app.schema.movie import Movie, MovieCreate, MovieUpdate, MovieWithGenres
 from app.schema.role import UserRoles
 
 logger = logging.getLogger("uvicorn.info")
@@ -27,7 +27,7 @@ async def get_movie(
     id: int,
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await Movie.get_one(session, id)
+    return await MovieWithGenres.get_one(session, id)
 
 
 @router.post("/", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))])
@@ -35,3 +35,16 @@ async def add_movie(
     payload: MovieCreate, session: AsyncSession = Depends(get_async_session)
 ):
     return await MovieCreate.create(session, payload)
+
+
+@router.patch("/{id}", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))])
+async def update_movie(
+    id: int, payload: MovieUpdate, session: AsyncSession = Depends(get_async_session)
+):
+    payload.id = id
+    return await MovieUpdate.update_one(session, payload)
+
+
+@router.delete("/{id}", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))])
+async def delete_movie(id: int, session: AsyncSession = Depends(get_async_session)):
+    return await Movie.delete_one(session, id)

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import ClassVar, Self, Union
+from typing import Any, ClassVar, Literal, Self, Union
 from pydantic import BaseModel
 
 from app.core.pagination.factory import PaginationQuery
@@ -39,6 +39,29 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 # Then commit if the flag is enabled
                 if commit:
                     await session.commit()
+
+            if return_as_base:
+                return result
+
+            return cls.model_validate(result, from_attributes=True)
+        except Exception as e:
+            raise e
+
+    @classmethod
+    async def update_one(
+        cls,
+        session: AsyncSession,
+        data: BaseModel | dict,
+        /,
+        *,
+        where_clause: list[ColumnElement[bool]] | None = None,
+        commit: bool = True,
+        return_as_base: bool = False,
+    ):
+        try:
+            result = await cls.model.update_one(
+                session, data, where_clause=where_clause, commit=commit
+            )
 
             if return_as_base:
                 return result
@@ -134,6 +157,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         *,
         commit: bool = True,
         return_as_base: bool = False,
+        on_conflict: Literal["do_nothing", "do_update"] = "do_update",
     ) -> Union[Self | type[Base]]:
         if isinstance(data, dict):
             try:
@@ -142,13 +166,57 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 raise e
 
         result = await cls.model.upsert_one(
-            session, data, index_elements, commit=commit
+            session, data, index_elements, commit=commit, on_conflict=on_conflict
         )
 
         if return_as_base:
             return result
 
         return cls.model_validate(result, from_attributes=True)
+    
+    @classmethod
+    async def delete_one(
+        cls,
+        session: AsyncSession,
+        val: Any,
+        /,
+        *,        
+        field: InstrumentedAttribute | None = None,
+        where_clause: list[ColumnElement[bool]] = None,
+        commit: bool = True,
+        return_as_base: bool = False
+    ):
+        try:
+            result = await cls.model.delete_one(session, val, field=field, where_clause=where_clause, commit=commit)
+
+            if return_as_base:
+                return result
+
+            return cls.model_validate(result, from_attributes=True)
+        except Exception as e:
+            raise e
+    
+    
+    @classmethod
+    async def delete_many(
+        cls,
+        session: AsyncSession,
+        where_clause: list[ColumnElement[bool]] = None,        
+        /,
+        *,        
+        commit: bool = True,
+        return_as_base: bool = False
+    ):
+        try:
+            result = await cls.model.delete_many(session, where_clause, commit=commit)
+
+            if return_as_base:
+                return result
+
+            return [cls.model_validate(item, from_attributes=True) for item in result]
+        except Exception as e:
+            raise e
+    
 
     @classmethod
     async def upsert_many(
@@ -160,10 +228,11 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         *,
         commit: bool = True,
         return_as_base: bool = False,
+        on_conflict: Literal["do_nothing", "do_update"] = "do_update",
     ) -> Union[list[Self] | list[type[Base]]]:
         if not data or len(data) == 0:
             return []
-        
+
         if isinstance(data[0], dict):
             try:
                 data = [cls.model_validate(item, from_attributes=True) for item in data]
@@ -171,7 +240,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 raise e
 
         result = await cls.model.upsert_many(
-            session, data, index_elements, commit=commit
+            session, data, index_elements, commit=commit, on_conflict=on_conflict
         )
 
         if return_as_base:

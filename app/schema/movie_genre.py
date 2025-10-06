@@ -10,3 +10,4 @@ class MovieGenre(BaseModelDatabaseMixin):
     movie_id: int
     genre_id: int
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

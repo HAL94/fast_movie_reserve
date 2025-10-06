@@ -59,14 +59,18 @@ class MovieGenre(Base):
     __tablename__ = "movie_genres"
 
     movie_id: Mapped[int] = mapped_column(
-        ForeignKey("movies.id"), nullable=False, primary_key=True
+        ForeignKey("movies.id", ondelete="cascade"), nullable=False, primary_key=True, 
     )
     movie: Mapped[Movie] = relationship(back_populates="movie_genre")
 
     genre_id: Mapped[int] = mapped_column(
-        ForeignKey("genres.id"), nullable=False, primary_key=True
+        ForeignKey("genres.id", ondelete="cascade"), nullable=False, primary_key=True
     )
     genre: Mapped[Genre] = relationship(back_populates="movie_genre")
+
+    __table_args__ = (
+        UniqueConstraint("movie_id", "genre_id", name="unique_movie_genre"),
+    )
 
 
 class Theatre(Base):

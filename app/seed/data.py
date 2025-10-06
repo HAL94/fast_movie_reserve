@@ -30,16 +30,16 @@ admin_user = {
 
 # --- Genres Data ---
 genres_data = [
-    {"id": 1, "title": "Action"},
-    {"id": 2, "title": "Adventure"},
-    {"id": 3, "title": "Sci-Fi"},
-    {"id": 4, "title": "Drama"},
-    {"id": 5, "title": "Comedy"},
-    {"id": 6, "title": "Horror"},
-    {"id": 7, "title": "Thriller"},
-    {"id": 8, "title": "Animation"},
-    {"id": 9, "title": "Fantasy"},
-    {"id": 10, "title": "Romance"},
+    {"id": 1, "title": "Action", "updated_at": datetime.now()},
+    {"id": 2, "title": "Adventure", "updated_at": datetime.now()},
+    {"id": 3, "title": "Sci-Fi", "updated_at": datetime.now()},
+    {"id": 4, "title": "Drama", "updated_at": datetime.now()},
+    {"id": 5, "title": "Comedy", "updated_at": datetime.now()},
+    {"id": 6, "title": "Horror", "updated_at": datetime.now()},
+    {"id": 7, "title": "Thriller", "updated_at": datetime.now()},
+    {"id": 8, "title": "Animation", "updated_at": datetime.now()},
+    {"id": 9, "title": "Fantasy", "updated_at": datetime.now()},
+    {"id": 10, "title": "Romance", "updated_at": datetime.now()},
 ]
 
 # --- Movies Data ---
