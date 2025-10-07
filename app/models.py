@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-from sqlalchemy import VARCHAR, ForeignKey, UniqueConstraint
+from sqlalchemy import VARCHAR, DateTime, ForeignKey, UniqueConstraint
 from app.core.database.base import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -97,8 +97,8 @@ class Showtime(Base):
     __tablename__ = "showtimes"
 
     base_ticket_cost: Mapped[float] = mapped_column()
-    start_at: Mapped[datetime] = mapped_column()
-    end_at: Mapped[datetime] = mapped_column()
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), nullable=False)
     theatre_id: Mapped[int] = mapped_column(ForeignKey("theatres.id"), nullable=False)

@@ -1,8 +1,8 @@
 """init_models
 
-Revision ID: 55e22b4f5436
+Revision ID: 82d79b2c8a86
 Revises: 
-Create Date: 2025-10-06 13:54:18.214469
+Create Date: 2025-10-07 20:35:39.340248
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '55e22b4f5436'
+revision: str = '82d79b2c8a86'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -79,8 +79,8 @@ def upgrade() -> None:
     )
     op.create_table('showtimes',
     sa.Column('base_ticket_cost', sa.Float(), nullable=False),
-    sa.Column('start_at', sa.DateTime(), nullable=False),
-    sa.Column('end_at', sa.DateTime(), nullable=False),
+    sa.Column('start_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('end_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('movie_id', sa.Integer(), nullable=False),
     sa.Column('theatre_id', sa.Integer(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
