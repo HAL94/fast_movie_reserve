@@ -7,7 +7,7 @@ from app.core.schema import AppBaseModel
 from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession 
 from fastapi import HTTPException
 from .utils import CreateModelRelations
 from sqlalchemy.orm.strategy_options import _AbstractLoad
@@ -83,7 +83,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            if pagination.skip:
+            if not pagination or pagination.skip:
                 result = await cls.model.get_all(
                     session,
                     where_clause=where_clause,
