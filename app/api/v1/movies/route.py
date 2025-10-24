@@ -1,11 +1,13 @@
 import logging
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
 from app.schema.movie import Movie, MovieCreate, MovieUpdate, MovieWithGenres
 from app.schema.role import UserRoles
+
 
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)
@@ -27,7 +29,9 @@ async def get_movie(
     id: int,
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await MovieWithGenres.get_one(session, id)
+    return await MovieWithGenres.get_one(
+        session, id, options=[selectinload(MovieWithGenres.model.genres)]
+    )
 
 
 @router.post("/", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))])

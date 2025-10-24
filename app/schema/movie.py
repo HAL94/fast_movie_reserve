@@ -1,8 +1,7 @@
 import logging
-from typing import Any, ClassVar, Optional
+import traceback
+from typing import ClassVar, Optional
 from fastapi import HTTPException
-from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.orm import selectinload
 
 from app.core.database.mixin import BaseModelDatabaseMixin
 from app.core.pagination.factory import PaginationFactory
@@ -11,6 +10,7 @@ from app.models import Movie as MovieModel
 from app.schema.genre import Genre
 from app.schema.movie_genre import MovieGenre
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -31,32 +31,6 @@ class Movie(BaseModelDatabaseMixin):
 
 class MovieWithGenres(Movie):
     genres: list[Genre]
-
-    @classmethod
-    async def get_one(
-        cls,
-        session: AsyncSession,
-        val: Any,
-        /,
-        *,
-        field: str | None = None,
-        where_clause: list[ColumnElement[bool]] = None,
-        return_as_base: bool = False,
-        raise_not_found: bool = True,
-    ):
-        result = await super().get_one(
-            session,
-            val,
-            field=field,
-            options=[selectinload(cls.model.genres)],
-            where_clause=where_clause,
-            raise_not_found=raise_not_found,
-        )
-
-        if return_as_base:
-            return result
-
-        return cls.model_validate(result, from_attributes=True)
 
 
 class MovieUpdate(Movie):
@@ -156,10 +130,19 @@ class MovieCreate(Movie):
             )
 
             genre_index = [Genre.model.title]
-            genres = await Genre.upsert_many(
-                session, data.genres, genre_index, commit=False
+            await Genre.upsert_many(
+                session,
+                data.genres,
+                genre_index,
+                commit=False,
+                on_conflict="do_nothing",
             )
 
+            genres: list[Genre] = await Genre.get_all(
+                session,
+                where_clause=[Genre.model.title.in_([g.title for g in data.genres])],
+            )
+            
             movie_genres = []
             for genre in genres:
                 movie_genres.append(
@@ -174,8 +157,11 @@ class MovieCreate(Movie):
             if return_as_base:
                 return created_movie
 
-            return cls.model_validate(
-                MovieCreate(**created_movie.dict(), genres=genres), from_attributes=True
+            movie_with_genres = await MovieWithGenres.get_one(
+                session, created_movie.id, options=[selectinload(cls.model.genres)]
             )
+
+            return movie_with_genres
         except Exception as e:
+            logger.info(f"Error in creating movie: {traceback.format_exc()}")
             raise e

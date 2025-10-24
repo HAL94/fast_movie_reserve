@@ -1,5 +1,5 @@
 from typing import Callable, Any, Literal, override, Dict, Union
-from sqlalchemy import Select, delete, select, func, DateTime, Column, update
+from sqlalchemy import Select, delete, insert, select, func, DateTime, Column, update
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
 from sqlalchemy.inspection import Inspectable
@@ -192,6 +192,35 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             raise e
 
     @classmethod
+    async def create_many(
+        cls,
+        session: AsyncSession,
+        data: Union[list[BaseModel], list[Dict]],
+        /,
+        *,
+        commit: bool = True,
+    ):
+        try:
+            if len(data) <= 0:
+                return []
+            payload = data
+            if isinstance(data[0], BaseModel):
+                payload = [
+                    item.model_dump(
+                        exclude_unset=True, exclude_none=True, by_alias=True
+                    )
+                    for item in data
+                ]
+            statement = insert(cls).returning(cls)
+            return await session.scalars(
+                statement,
+                payload
+            )
+        except IntegrityError as e:
+            await session.rollback()
+            raise e
+
+    @classmethod
     async def get_many(
         cls,
         session: AsyncSession,
@@ -267,7 +296,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             if options:
                 statement = statement.options(*options)
-            
+
             statement = statement.limit(limit)
 
             return await session.scalars(statement)

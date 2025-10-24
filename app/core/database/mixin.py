@@ -7,7 +7,7 @@ from app.core.schema import AppBaseModel
 from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.ext.asyncio import AsyncSession 
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from .utils import CreateModelRelations
 from sqlalchemy.orm.strategy_options import _AbstractLoad
@@ -48,6 +48,34 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             raise e
 
     @classmethod
+    async def create_many(
+        cls,
+        session: AsyncSession,
+        data: Union[list[BaseModel] | list[dict]],
+        /,
+        *,
+        commit: bool = True,
+        return_as_base: bool = False,
+    ) -> Union[list[Self], list[Base]]:
+        try:
+            if not data or len(data) <= 0:
+                return []
+
+            result: list[Base] = await cls.model.create_many(
+                session, data, commit=commit
+            )
+
+            if return_as_base:
+                return result
+
+            return [
+                cls.model_validate(**item.dict(), from_attributes=True)
+                for item in result
+            ]
+        except Exception as e:
+            raise e
+
+    @classmethod
     async def update_one(
         cls,
         session: AsyncSession,
@@ -83,7 +111,21 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            
+            if not pagination:
+                result = await cls.model.get_all(
+                    session,
+                    where_clause=where_clause,
+                    order_clause=order_clause,
+                    options=options,
+                )
+
+                if return_as_base:
+                    return result
+
+                return [
+                    cls.model_validate(item, from_attributes=True) for item in result
+                ]
+
             where_clause = pagination.filter_fields
             order_clause = pagination.sort_fields
             page = pagination.page
@@ -95,7 +137,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 size=size,
                 where_clause=where_clause,
                 order_clause=order_clause,
-                options=options
+                options=options,
             )
             if return_as_base:
                 return paginated_result
@@ -161,21 +203,23 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             return result
 
         return cls.model_validate(result, from_attributes=True)
-    
+
     @classmethod
     async def delete_one(
         cls,
         session: AsyncSession,
         val: Any,
         /,
-        *,        
+        *,
         field: InstrumentedAttribute | None = None,
         where_clause: list[ColumnElement[bool]] = None,
         commit: bool = True,
-        return_as_base: bool = False
+        return_as_base: bool = False,
     ):
         try:
-            result = await cls.model.delete_one(session, val, field=field, where_clause=where_clause, commit=commit)
+            result = await cls.model.delete_one(
+                session, val, field=field, where_clause=where_clause, commit=commit
+            )
 
             if return_as_base:
                 return result
@@ -183,17 +227,16 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             return cls.model_validate(result, from_attributes=True)
         except Exception as e:
             raise e
-    
-    
+
     @classmethod
     async def delete_many(
         cls,
         session: AsyncSession,
-        where_clause: list[ColumnElement[bool]] = None,        
+        where_clause: list[ColumnElement[bool]] = None,
         /,
-        *,        
+        *,
         commit: bool = True,
-        return_as_base: bool = False
+        return_as_base: bool = False,
     ):
         try:
             result = await cls.model.delete_many(session, where_clause, commit=commit)
@@ -204,7 +247,6 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             return [cls.model_validate(item, from_attributes=True) for item in result]
         except Exception as e:
             raise e
-    
 
     @classmethod
     async def upsert_many(

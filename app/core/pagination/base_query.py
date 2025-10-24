@@ -12,7 +12,7 @@ class PaginationQuery(AppBaseModel, ABC):
     sort_by: Optional[str] = None
     filter_by: Optional[str] = None
 
-    @abstractmethod
+    @abstractmethod    
     def sort_fields() -> list[InstrumentedAttribute]:
         pass
 
