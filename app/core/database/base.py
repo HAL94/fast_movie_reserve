@@ -245,6 +245,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         *,
         where_clause: list[ColumnElement[bool]] = None,
         order_clause: list[InstrumentedAttribute] = [],
+        limit: int = 20,
         options: list[_AbstractLoad] | None = None,
     ):
         try:
@@ -266,6 +267,8 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             if options:
                 statement = statement.options(*options)
+            
+            statement = statement.limit(limit)
 
             return await session.scalars(statement)
         except Exception as e:

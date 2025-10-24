@@ -83,41 +83,29 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
-            if not pagination or pagination.skip:
-                result = await cls.model.get_all(
-                    session,
-                    where_clause=where_clause,
-                    order_clause=order_clause,
-                    options=options,
-                )
-                if return_as_base:
-                    return result
+            
+            where_clause = pagination.filter_fields
+            order_clause = pagination.sort_fields
+            page = pagination.page
+            size = pagination.size
 
-                return [
-                    cls.model_validate(item, from_attributes=True) for item in result
-                ]
-            else:
-                where_clause = pagination.filter_fields
-                order_clause = pagination.sort_fields
-                page = pagination.page
-                size = pagination.size
-
-                paginated_result = await cls.model.get_many(
-                    session,
-                    page=page,
-                    size=size,
-                    where_clause=where_clause,
-                    order_clause=order_clause,
-                )
-                if return_as_base:
-                    return paginated_result
-
-                result = paginated_result.result
-                paginated_result.result = [
-                    cls.model_validate(item, from_attributes=True) for item in result
-                ]
-
+            paginated_result = await cls.model.get_many(
+                session,
+                page=page,
+                size=size,
+                where_clause=where_clause,
+                order_clause=order_clause,
+                options=options
+            )
+            if return_as_base:
                 return paginated_result
+
+            result = paginated_result.result
+            paginated_result.result = [
+                cls.model_validate(item, from_attributes=True) for item in result
+            ]
+
+            return paginated_result
 
         except Exception as e:
             raise e
