@@ -114,13 +114,23 @@ class PaginationFactory:
 
             @cached_property
             def sort_fields(self):
-                return sort_parser._process_sort_fields(self.sort_by, self.__model__)
+                fields = sort_parser._process_sort_fields(self.sort_by, self.__model__)
+
+                if not fields:
+                    return []
+                
+                return fields
 
             @cached_property
             def filter_fields(self):
-                return filter_parser._process_filter_fields(
+                fields = filter_parser._process_filter_fields(
                     self.filter_by, self.__model__
                 )
+
+                if not fields:
+                    return []
+                
+                return fields
 
             @field_validator("sort_by")
             @classmethod

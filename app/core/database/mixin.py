@@ -105,8 +105,9 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         /,
         *,
         pagination: PaginationQuery | None = None,
-        where_clause: list[ColumnElement[bool]] | None = None,
-        order_clause: list[InstrumentedAttribute] | None = None,
+        where_clause: list[ColumnElement[bool]] | None = [],
+        order_clause: list[InstrumentedAttribute] | None = [],
+        limit: int = 20,
         options: list[_AbstractLoad] | None = None,
         return_as_base: bool = False,
     ):
@@ -117,6 +118,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                     where_clause=where_clause,
                     order_clause=order_clause,
                     options=options,
+                    limit=limit
                 )
 
                 if return_as_base:
@@ -126,8 +128,8 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                     cls.model_validate(item, from_attributes=True) for item in result
                 ]
 
-            where_clause = pagination.filter_fields
-            order_clause = pagination.sort_fields
+            pagination_where_clause = pagination.filter_fields
+            pagination_order_clause = pagination.sort_fields            
             page = pagination.page
             size = pagination.size
 
@@ -135,8 +137,8 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 session,
                 page=page,
                 size=size,
-                where_clause=where_clause,
-                order_clause=order_clause,
+                where_clause=where_clause + pagination_where_clause,
+                order_clause=order_clause + pagination_order_clause,
                 options=options,
             )
             if return_as_base:
