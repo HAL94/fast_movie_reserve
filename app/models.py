@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-from sqlalchemy import VARCHAR, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import VARCHAR, DateTime, ForeignKey, Index, UniqueConstraint
 from app.core.database.base import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,7 +59,9 @@ class MovieGenre(Base):
     __tablename__ = "movie_genres"
 
     movie_id: Mapped[int] = mapped_column(
-        ForeignKey("movies.id", ondelete="cascade"), nullable=False, primary_key=True, 
+        ForeignKey("movies.id", ondelete="cascade"),
+        nullable=False,
+        primary_key=True,
     )
     movie: Mapped[Movie] = relationship(back_populates="movie_genre")
 
@@ -121,6 +123,15 @@ class Reservation(Base):
     final_price: Mapped[float] = mapped_column()
     reserved_at: Mapped[datetime] = mapped_column()
 
+    # Partial Unique Index
     __table_args__ = (
-        UniqueConstraint("show_time_id", "seat_id", name="uc_showtime_seat"),
+        Index(
+            "uc_showtime_seat",
+            "show_time_id",
+            "seat_id",
+            unique=True,
+            # It allows multiple rows with the same (show_time_id, seat_id)
+            # if the status is NOT HELD and NOT CONFIRMED (e.g., CANCELED, NO_SHOW, COMPLETED).
+            postgresql_where=((status == "HELD") | (status == "CONFIRMED")),
+        ),
     )

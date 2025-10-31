@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
+    volumes: 
       - ./app:/src/app
       - /src/.venv
     ports:
@@ -27,7 +27,8 @@ services:
     env_file:
       - ./.env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - fmr_network
 
@@ -42,9 +43,63 @@ services:
       - 5433:5432
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d movies"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - fmr_network
 
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - fmr_network
+    
+  rabbitmq:
+    image: rabbitmq:latest
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: rabbit    
+    volumes:
+      - ./rabbitmq-lib:/var/lib/rabbitmq
+      - ./rabbitmq-log:/var/log/rabbitmq
+    networks:
+      - fmr_network
+  
+  celery:
+    # Use the same image as the main app, as it contains all the application code and dependencies
+    build:
+      context: .
+    networks:
+      - fmr_network
+
+    env_file:
+      - ./.env
+
+    # The command to start the Celery worker
+    command:
+      [
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.jobs.celery",
+        "worker",
+        "-l",
+        "INFO",
+      ]
+
+    depends_on:
+      - redis
+      - migration
+      - rabbitmq
 networks:
   fmr_network:
     driver: bridge

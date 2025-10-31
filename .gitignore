@@ -11,3 +11,5 @@ postgres_data
 # Virtual environments
 .venv
 .env
+rabbitmq-lib
+rabbitmq-log
