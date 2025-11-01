@@ -5,15 +5,15 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
-from app.schema.movie import Movie, MovieCreate, MovieUpdate, MovieWithGenres
-from app.schema.role import UserRoles
+from app.services.movie import Movie, MovieCreate, MovieUpdate, MovieWithGenres
+from app.services.role import UserRoles
 
 
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)
 
 
-router = APIRouter(prefix="/movies", dependencies=[Depends(ValidateJwt())])
+router = APIRouter(prefix="/movies", dependencies=[Depends(ValidateJwt())], tags=["Movies"])
 
 
 @router.get("/")

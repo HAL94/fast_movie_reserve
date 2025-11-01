@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
-from app.schema.genre import Genre
-from app.schema.role import UserRoles
+from app.services.genre import Genre
+from app.services.role import UserRoles
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter(
-    prefix="/genres", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))]
+    prefix="/genres", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))], tags=["Genres"]
 )
 
 

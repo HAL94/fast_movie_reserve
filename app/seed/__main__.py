@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from app.core.database.session import session_manager
-from app.schema import Genre, Movie, Role, Theatre, Seat, MovieGenre, UserCreate
+from app.services import Genre, Movie, Role, Theatre, Seat, MovieGenre, UserCreate
 from .data import (
     movies_data,
     movie_genre_data,

@@ -9,6 +9,8 @@ from app.models import *  # noqa: F403
 
 
 import logging
+
+from app.redis.client import get_redis_client, RedisClient
 logger = logging.getLogger("uvicorn.info")
 logger.setLevel(logging.INFO)
 
@@ -20,7 +22,11 @@ class FastApp(FastAPI):
         super().__init__(**kwargs)
 
     @asynccontextmanager
-    async def _lifespan(self, _: Self, /) -> AsyncGenerator[None, Any]:        
+    async def _lifespan(self, _: Self, /) -> AsyncGenerator[None, Any]:
+        redis_client: RedisClient = get_redis_client()
+        is_connected = await redis_client.connect()
+        if is_connected:
+            logger.info("[RedisClient] is connected successfully!")
         yield
         engine = session_manager.engine
         await engine.dispose()

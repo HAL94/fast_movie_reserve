@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database.session import get_async_session
-from app.schema.seat import Seat
+from app.services.seat import Seat
 
 
-router = APIRouter(prefix="/seats")
+router = APIRouter(prefix="/seats", tags=["Seats"])
 
 
 @router.get("/{showtime_id}")

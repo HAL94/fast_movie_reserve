@@ -4,12 +4,15 @@ from typing import ClassVar, Optional
 
 from pydantic import Field
 from app.core.database.mixin import BaseModelDatabaseMixin
+from app.core.pagination.factory import PaginationFactory
 from app.core.schema import AppBaseModel
+from app.jobs.utils import revoke_celery_task
 from app.models import Reservation as ReservationModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schema.showtime import Showtime
+from app.services.showtime import Showtime
 from app.jobs.tasks import check_if_confirmed
+from app.redis import RedisClient
 
 
 class ReservationCreate(AppBaseModel):
@@ -31,13 +34,14 @@ class Reservation(BaseModelDatabaseMixin):
     is_refunded: Optional[bool] = False
     final_price: Optional[float] = None
 
+    class Pagination(PaginationFactory.create(ReservationModel)):
+        pass
+
     class Status(enum.StrEnum):
         """
         Represents the reservation lifecycle states
 
         HELD: User selected a seat and proceeded to payment details page, client can call to create a HELD reservation.
-
-        PENDING: User filled his payment details and attempts to pay. client can call to create a PENDING reservation.
 
         CONFIRMED: User has successfully made a payment, and therefore the state can be converted to CONFIRMED.
 
@@ -47,10 +51,13 @@ class Reservation(BaseModelDatabaseMixin):
         """
 
         HELD = "HELD"
-        PENDING = "PENDING"
         CONFIRMED = "CONFIRMED"
         NO_SHOW = "NO_SHOW"
         CANCELED = "CANCELED"
+
+    @classmethod
+    def get_cache_key(cls, reservation_id: int):
+        return f"reservations:{reservation_id}:task"
 
     @classmethod
     async def create_held(
@@ -58,6 +65,7 @@ class Reservation(BaseModelDatabaseMixin):
         session: AsyncSession,
         data: ReservationCreate,
         user_id: int,
+        redis_client: RedisClient,
         /,
         *,
         commit: bool = True,
@@ -80,9 +88,11 @@ class Reservation(BaseModelDatabaseMixin):
                 session, reservation_data, commit=commit, return_as_base=return_as_base
             )
 
-            check_if_confirmed.apply_async(
-                (created_reservation.id,), eta=datetime.now() + timedelta(seconds=30)
+            task_result = check_if_confirmed.apply_async(
+                (created_reservation.id,), eta=datetime.now() + timedelta(seconds=20)
             )
+
+            await redis_client.set(cls.get_cache_key(created_reservation.id), task_result.id, ex=1800)
 
             return created_reservation
         except Exception as e:
@@ -90,21 +100,31 @@ class Reservation(BaseModelDatabaseMixin):
 
     @classmethod
     async def update_confirmed(
-        cls, session: AsyncSession, reservation_id: int, payment_id: str | None = None
+        cls,
+        session: AsyncSession,
+        reservation_id: int,
+        redis_client: RedisClient,
+        payment_id: str | None = None,
     ) -> "Reservation":
         try:
             reservation_found: ReservationModel = await cls.get_one(
                 session, reservation_id, return_as_base=True
             )
-            # Allowed states for changing to CONFIRM state are: HELD or PENDING
-            if reservation_found.status != cls.Status.PENDING and reservation_found.status != cls.Status.HELD:
+            # Allowed states for changing to CONFIRM state are: HELD
+            if reservation_found.status != cls.Status.HELD:
                 raise ValueError("Cannot modify this reservation")
-            
+
             if payment_id != "DUMMY_PAYMENT_ID_123":
                 raise ValueError("Payment not confirmed")
 
             reservation_found.status = cls.Status.CONFIRMED
             reservation_found.is_paid = True
+
+            task_id = await redis_client.get(cls.get_cache_key(reservation_found.id))
+
+            if task_id:
+                revoke_celery_task(task_id)
+
             await session.commit()
             return cls.model_validate(reservation_found.dict(), from_attributes=True)
         except Exception as e:
@@ -112,10 +132,14 @@ class Reservation(BaseModelDatabaseMixin):
 
     @classmethod
     async def update_no_show(
-        cls, session: AsyncSession, reservation_id: int,
+        cls,
+        session: AsyncSession,
+        reservation_id: int,
     ) -> "Reservation":
         try:
-            reservation_found: ReservationModel = await Reservation.get_one(session, reservation_id, return_as_base=True)
+            reservation_found: ReservationModel = await Reservation.get_one(
+                session, reservation_id, return_as_base=True
+            )
             if reservation_found.status != Reservation.Status.CONFIRMED:
                 raise ValueError("Cannot modify this reservation")
             reservation_found.status = Reservation.Status.NO_SHOW
@@ -123,16 +147,16 @@ class Reservation(BaseModelDatabaseMixin):
             return cls.model_validate(reservation_found.dict(), from_attributes=True)
         except Exception as e:
             raise e
-    
+
     @classmethod
-    async def update_canceled(
-        cls, session: AsyncSession, reservation_id: int
-    ):
+    async def update_canceled(cls, session: AsyncSession, reservation_id: int):
         try:
-            reservation_found: ReservationModel = await Reservation.get_one(session, reservation_id, return_as_base=True)
+            reservation_found: ReservationModel = await Reservation.get_one(
+                session, reservation_id, return_as_base=True
+            )
             if reservation_found.status != Reservation.Status.CONFIRMED:
                 raise ValueError("Only confirmed statuses can be canceled")
-            
+
             reservation_found.status = Reservation.Status.CANCELED
             await session.commit()
             return cls.model_validate(reservation_found.dict(), from_attributes=True)

@@ -4,12 +4,12 @@ from app.core.auth.jwt import JwtAuth, ValidateJwt
 from app.core.database.session import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schema.role import UserRoles
-from app.schema.user.user_auth import UserAuth
-from app.schema.user import UserCredentials, UserBase, SignupRequest
+from app.services.role import UserRoles
+from app.services.user.user_auth import UserAuth
+from app.services.user import UserCredentials, UserBase, SignupRequest
 
 
-router: APIRouter = APIRouter(prefix="/auth")
+router: APIRouter = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.get("/me")

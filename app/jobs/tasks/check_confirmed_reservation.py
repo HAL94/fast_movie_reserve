@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @celery.task
 def check_if_confirmed(reservation_id: int) -> bool:
     # import here avoids circular imports issue
-    from app.schema.reservation import Reservation
+    from app.services.reservation import Reservation
 
     async def delete_session_if_not_confirmed():
         try:
@@ -37,4 +37,5 @@ def check_if_confirmed(reservation_id: int) -> bool:
             )
 
     running_loop = asyncio.get_event_loop()
-    running_loop.run_until_complete(delete_session_if_not_confirmed())
+    return running_loop.run_until_complete(delete_session_if_not_confirmed())
+    

@@ -42,7 +42,7 @@ class PaginationParser:
             if isinstance(column_type, Float):
                 return float(value)
             if isinstance(column_type, Boolean):
-                return bool(value)
+                return value == "true" or value == "1"
             if isinstance(column_type, DateTime):
                 from datetime import datetime
                 try:

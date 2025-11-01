@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
-from app.schema.role import UserRoles
-from app.schema.showtime import Showtime
+from app.services.role import UserRoles
+from app.services.showtime import Showtime
 
 
-router = APIRouter(prefix="/showtimes", dependencies=[Depends(ValidateJwt())])
+router = APIRouter(prefix="/showtimes", dependencies=[Depends(ValidateJwt())], tags=["Showtimes"])
 
 
 @router.get("/")

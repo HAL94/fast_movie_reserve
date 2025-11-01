@@ -17,7 +17,7 @@ v1_router.include_router(reservation_router)
 
 
 
-@v1_router.get("/welcome")
+@v1_router.get("/welcome", tags=["Welcome"], description="Hello world endpoint")
 def welcome():
     return {"Welcome": "to your fast movie reserve project"}
 

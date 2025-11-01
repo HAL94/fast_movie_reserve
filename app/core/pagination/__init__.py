@@ -7,7 +7,7 @@ from app.core.schema import AppBaseModel
 T = TypeVar(name="T")
 
 class PaginatedResult(AppBaseModel, Generic[T]):
-    result: T
+    result: list[T]
     total_records: int
     size: int
     page: int

@@ -4,7 +4,7 @@ import traceback
 from fastapi import HTTPException, status
 from app.core.auth.jwt import JwtAuth
 from app.core.auth.schema import JwtPayload
-from app.schema.role import Role, UserRoles
+from app.services.role import Role, UserRoles
 
 from .user_base import UserBase, UserCreate
 from .utils import SigninResult, SignupRequest, UserCredentials

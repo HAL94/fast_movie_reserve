@@ -72,6 +72,8 @@ class PaginationFilterParser(PaginationParser):
                     value=value, column_type=column.type, field_name=key
                 )
 
+                print(f"Converted value: {bool(value)} - {converted_value}")
+
                 sql_expr = FieldOperation.create_sql_expression(
                     column=column, operator=operator, column_value=converted_value
                 )

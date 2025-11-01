@@ -1,7 +1,7 @@
 from datetime import datetime
 import random
 
-from app.schema.role import UserRoles
+from app.services.role import UserRoles
 
 # --- Role Data ---
 roles_data = [

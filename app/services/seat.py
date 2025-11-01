@@ -8,8 +8,8 @@ from app.models import Seat as SeatModel
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schema.reservation import Reservation
-from app.schema.showtime import Showtime
+from app.services.reservation import Reservation
+from app.services.showtime import Showtime
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -36,7 +36,6 @@ class Seat(BaseModelDatabaseMixin):
 
         booked_statuses = [
             Reservation.Status.HELD,
-            Reservation.Status.PENDING,
             Reservation.Status.CONFIRMED,
         ]
 

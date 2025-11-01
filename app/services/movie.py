@@ -7,8 +7,8 @@ from app.core.database.mixin import BaseModelDatabaseMixin
 from app.core.pagination.factory import PaginationFactory
 from app.models import Movie as MovieModel
 
-from app.schema.genre import Genre
-from app.schema.movie_genre import MovieGenre
+from app.services.genre import Genre
+from app.services.movie_genre import MovieGenre
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 

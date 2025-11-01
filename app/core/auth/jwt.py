@@ -9,8 +9,8 @@ from app.core.auth.schema import JwtPayload
 from app.core.config import settings
 from app.core.auth.cookie import cookie_signer
 from app.core.database.session import get_async_session
-from app.schema.role import UserRoles
-from app.schema.user import UserBase
+from app.services.role import UserRoles
+from app.services.user import UserBase
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
