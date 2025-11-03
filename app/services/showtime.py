@@ -10,6 +10,13 @@ from app.core.pagination.factory import PaginationFactory
 from app.models import Showtime as ShowtimeModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.strategy_options import _AbstractLoad
+from sqlalchemy.orm import selectinload
+
+
+from app.services.movie import Movie
+from app.services.theatre import Theatre
 
 
 class Showtime(BaseModelDatabaseMixin):
@@ -45,19 +52,17 @@ class Showtime(BaseModelDatabaseMixin):
         try:
             showtimes: list[Showtime] = await Showtime.get_all(
                 session,
-                where_clause=[Showtime.model.theatre_id == data.theatre_id],
-                order_clause=[Showtime.model.start_at],
+                where_clause=[
+                    Showtime.model.theatre_id == data.theatre_id,
+                    Showtime.model.start_at <= data.end_at,
+                    Showtime.model.end_at >= data.start_at,
+                ],
             )
-
-            for showtime in showtimes:
-                if (
-                    data.start_at >= showtime.start_at
-                    and data.start_at < showtime.end_at
-                ):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Cannot schedule the showtime at theatre id: {showtime.theatre_id}, provided times are conflicting: {data.start_at} and {data.end_at}",
-                    )
+            if len(showtimes) > 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot schedule the showtime at theatre id: {data.theatre_id}, provided times are conflicting with other showtime(s): {showtimes}",
+                )
         except Exception as e:
             raise e
 
@@ -106,3 +111,31 @@ class Showtime(BaseModelDatabaseMixin):
             )
         except Exception as e:
             raise e
+
+
+class ShowtimeDetails(Showtime):
+    movie: Movie
+    theatre: Theatre
+
+    @classmethod
+    async def get_one(
+        cls,
+        session: AsyncSession,
+        val,
+        /,
+        *,
+        field: InstrumentedAttribute | None = None,
+        where_clause: list[ColumnElement[bool]] | None = None,
+        options: list[_AbstractLoad] | None = [],
+        return_as_base: bool = False,
+        raise_not_found: bool = True,
+    ):
+        return await super().get_one(
+            session,
+            val,
+            field=field,
+            where_clause=where_clause,
+            options=[*options, selectinload(cls.model.movie), selectinload(cls.model.theatre)],
+            return_as_base=return_as_base,
+            raise_not_found=raise_not_found
+        )

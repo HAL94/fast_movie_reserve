@@ -40,19 +40,19 @@ async def create_held_reservation(
 @router.patch(
     "/confirm-seat/{reservation_id:path}",
     response_model=Reservation,
-    dependencies=[Depends(ValidateJwt(UserRoles.REGULAR_USER))],
 )
 async def update_reservation_confirmed(
     reservation_id: int,
     session: AsyncSession = Depends(get_async_session),
     redis_client: RedisClient = Depends(get_redis_client),
+    user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER)),
     payment_id: str = Query(
         default=None,
         description="Payment processor result id for a reservation payment",
     ),
 ):
     return await Reservation.update_confirmed(
-        session, reservation_id, redis_client, payment_id
+        session, reservation_id, user.id, redis_client, payment_id
     )
 
 
@@ -71,12 +71,31 @@ async def update_reservation_no_show(
 @router.patch(
     "/cancel/{reservation_id:path}",
     response_model=Reservation,
-    dependencies=[Depends(ValidateJwt(UserRoles.REGULAR_USER))],
 )
 async def update_reservation_canceled(
-    reservation_id: int, session: AsyncSession = Depends(get_async_session)
+    reservation_id: int, 
+    session: AsyncSession = Depends(get_async_session),
+    user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER))
 ):
-    return await Reservation.update_canceled(session, reservation_id)
+    return await Reservation.update_canceled(session, reservation_id, user.id)
+
+
+@router.get(
+    "/my-reservations",
+    response_model=PaginatedResult[Reservation],
+)
+async def get_my_reservations(
+    session: AsyncSession = Depends(get_async_session),
+    user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER)),
+    pagination: Reservation.Pagination = Query(
+        description="Paginate reservations for a user",
+    ),
+):
+    return await Reservation.get_all(
+        session,
+        pagination=pagination,
+        where_clause=[Reservation.model.user_id == user.id],
+    )
 
 
 @router.get(

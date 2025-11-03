@@ -3,10 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
 from app.services.role import UserRoles
-from app.services.showtime import Showtime
+from app.services.showtime import Showtime, ShowtimeDetails
 
 
-router = APIRouter(prefix="/showtimes", dependencies=[Depends(ValidateJwt())], tags=["Showtimes"])
+router = APIRouter(prefix="/showtimes", tags=["Showtimes"])
 
 
 @router.get("/")
@@ -22,7 +22,7 @@ async def get_showtime(
     id: int,
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await Showtime.get_one(session, id)
+    return await ShowtimeDetails.get_one(session, id)
 
 
 @router.post("/", dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))])

@@ -72,7 +72,16 @@ class Reservation(BaseModelDatabaseMixin):
         return_as_base: bool = False,
     ) -> "Reservation":
         try:
-            showtime = await Showtime.get_one(session, data.show_time_id)
+            showtime = await Showtime.get_one(
+                session,
+                data.show_time_id,
+                where_clause=[  # ensure not accessing a showtime in past
+                    Showtime.model.start_at
+                    >= datetime.now().replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                ],
+            )
             reservation_data = Reservation(
                 show_time_id=data.show_time_id,
                 seat_id=data.seat_id,
@@ -89,10 +98,12 @@ class Reservation(BaseModelDatabaseMixin):
             )
 
             task_result = check_if_confirmed.apply_async(
-                (created_reservation.id,), eta=datetime.now() + timedelta(seconds=20)
+                (created_reservation.id,), eta=datetime.now() + timedelta(seconds=60)
             )
 
-            await redis_client.set(cls.get_cache_key(created_reservation.id), task_result.id, ex=1800)
+            await redis_client.set(
+                cls.get_cache_key(created_reservation.id), task_result.id, ex=1800
+            )
 
             return created_reservation
         except Exception as e:
@@ -103,12 +114,16 @@ class Reservation(BaseModelDatabaseMixin):
         cls,
         session: AsyncSession,
         reservation_id: int,
+        user_id: int,
         redis_client: RedisClient,
         payment_id: str | None = None,
     ) -> "Reservation":
         try:
             reservation_found: ReservationModel = await cls.get_one(
-                session, reservation_id, return_as_base=True
+                session,
+                reservation_id,
+                return_as_base=True,
+                where_clause=[cls.model.user_id == user_id],
             )
             # Allowed states for changing to CONFIRM state are: HELD
             if reservation_found.status != cls.Status.HELD:
@@ -149,10 +164,10 @@ class Reservation(BaseModelDatabaseMixin):
             raise e
 
     @classmethod
-    async def update_canceled(cls, session: AsyncSession, reservation_id: int):
+    async def update_canceled(cls, session: AsyncSession, reservation_id: int, user_id: int):
         try:
             reservation_found: ReservationModel = await Reservation.get_one(
-                session, reservation_id, return_as_base=True
+                session, reservation_id, return_as_base=True, where_clause=[cls.model.user_id == user_id]
             )
             if reservation_found.status != Reservation.Status.CONFIRMED:
                 raise ValueError("Only confirmed statuses can be canceled")

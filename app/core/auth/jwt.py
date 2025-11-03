@@ -42,7 +42,7 @@ class JwtAuth:
     @classmethod
     async def validate_token(
         cls, session: AsyncSession, token: AccessToken, role: UserRoles | None = None
-    ) -> dict:
+    ) -> UserBase:
         """Validate a JWT token and return payload"""
         unauth_exc = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -70,7 +70,7 @@ class JwtAuth:
 
             return user_data
         except Exception as e:
-            logger.info(f"[JwtAuth]: validation failed: {e} {traceback.format_exc()}")
+            logger.error(f"[JwtAuth]: validation failed: {e} {traceback.format_exc()}")
             raise unauth_exc
 
 
