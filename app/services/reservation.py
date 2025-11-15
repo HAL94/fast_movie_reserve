@@ -11,18 +11,26 @@ from app.models import Reservation as ReservationModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.showtime import Showtime
+from app.services.seat import Seat
 from app.jobs.tasks import check_if_confirmed
 from app.redis import RedisClient
 
+from sqlalchemy.orm import selectinload
 
+
+# Dto
 class ReservationCreate(AppBaseModel):
     show_time_id: int
     seat_id: int
     reserved_at: Optional[datetime] = Field(default=datetime.now())
 
 
-class Reservation(BaseModelDatabaseMixin):
+class ReservationBase(BaseModelDatabaseMixin):
     model: ClassVar[type[ReservationModel]] = ReservationModel
+
+    @classmethod
+    def relations(cls):
+        return []
 
     id: Optional[int] = None
     show_time_id: int
@@ -33,9 +41,6 @@ class Reservation(BaseModelDatabaseMixin):
     is_paid: Optional[bool] = False  # in real world, got to make payment first.
     is_refunded: Optional[bool] = False
     final_price: Optional[float] = None
-
-    class Pagination(PaginationFactory.create(ReservationModel)):
-        pass
 
     class Status(enum.StrEnum):
         """
@@ -55,10 +60,29 @@ class Reservation(BaseModelDatabaseMixin):
         NO_SHOW = "NO_SHOW"
         CANCELED = "CANCELED"
 
+    class Pagination(PaginationFactory.create(ReservationModel)):
+        pass
+
     @classmethod
     def get_cache_key(cls, reservation_id: int):
         return f"reservations:{reservation_id}:task"
 
+
+# Helpers
+class ReservationWithRelations(ReservationBase):
+    @classmethod
+    def relations(cls):
+        return [selectinload(cls.model.showtime), selectinload(cls.model.seat)]
+
+    show_time_id: int = Field(exclude=True)
+    seat_id: int = Field(exclude=True)
+
+    showtime: Optional[Showtime] = None
+    seat: Optional[Seat] = None
+
+
+# Service Layer
+class Reservation(ReservationBase):
     @classmethod
     async def create_held(
         cls,
@@ -70,16 +94,14 @@ class Reservation(BaseModelDatabaseMixin):
         *,
         commit: bool = True,
         return_as_base: bool = False,
-    ) -> "Reservation":
+    ) -> ReservationWithRelations:
         try:
             showtime = await Showtime.get_one(
                 session,
                 data.show_time_id,
                 where_clause=[  # ensure not accessing a showtime in past
                     Showtime.model.start_at
-                    >= datetime.now().replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
+                    >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                 ],
             )
             reservation_data = Reservation(
@@ -104,8 +126,11 @@ class Reservation(BaseModelDatabaseMixin):
             await redis_client.set(
                 cls.get_cache_key(created_reservation.id), task_result.id, ex=1800
             )
+            reservation_detail = await ReservationWithRelations.get_one(
+                session, created_reservation.id
+            )
 
-            return created_reservation
+            return reservation_detail
         except Exception as e:
             raise e
 
@@ -117,13 +142,15 @@ class Reservation(BaseModelDatabaseMixin):
         user_id: int,
         redis_client: RedisClient,
         payment_id: str | None = None,
-    ) -> "Reservation":
+    ) -> ReservationWithRelations:
         try:
-            reservation_found: ReservationModel = await cls.get_one(
-                session,
-                reservation_id,
-                return_as_base=True,
-                where_clause=[cls.model.user_id == user_id],
+            reservation_found: ReservationModel = (
+                await ReservationWithRelations.get_one(
+                    session,
+                    reservation_id,
+                    return_as_base=True,
+                    where_clause=[cls.model.user_id == user_id],
+                )
             )
             # Allowed states for changing to CONFIRM state are: HELD
             if reservation_found.status != cls.Status.HELD:
@@ -141,7 +168,10 @@ class Reservation(BaseModelDatabaseMixin):
                 revoke_celery_task(task_id)
 
             await session.commit()
-            return cls.model_validate(reservation_found.dict(), from_attributes=True)
+
+            return ReservationWithRelations.model_validate(
+                reservation_found.dict(), from_attributes=True
+            )
         except Exception as e:
             raise e
 
@@ -150,30 +180,44 @@ class Reservation(BaseModelDatabaseMixin):
         cls,
         session: AsyncSession,
         reservation_id: int,
-    ) -> "Reservation":
+    ) -> ReservationWithRelations:
         try:
-            reservation_found: ReservationModel = await Reservation.get_one(
-                session, reservation_id, return_as_base=True
+            reservation_found: ReservationModel = (
+                await ReservationWithRelations.get_one(
+                    session, reservation_id, return_as_base=True
+                )
             )
             if reservation_found.status != Reservation.Status.CONFIRMED:
                 raise ValueError("Cannot modify this reservation")
             reservation_found.status = Reservation.Status.NO_SHOW
             await session.commit()
-            return cls.model_validate(reservation_found.dict(), from_attributes=True)
+
+            return ReservationWithRelations.model_validate(
+                reservation_found.dict(), from_attributes=True
+            )
         except Exception as e:
             raise e
 
     @classmethod
-    async def update_canceled(cls, session: AsyncSession, reservation_id: int, user_id: int):
+    async def update_canceled(
+        cls, session: AsyncSession, reservation_id: int, user_id: int
+    ) -> ReservationWithRelations:
         try:
-            reservation_found: ReservationModel = await Reservation.get_one(
-                session, reservation_id, return_as_base=True, where_clause=[cls.model.user_id == user_id]
+            reservation_found: ReservationModel = (
+                await ReservationWithRelations.get_one(
+                    session,
+                    reservation_id,
+                    return_as_base=True,
+                    where_clause=[cls.model.user_id == user_id],
+                )
             )
             if reservation_found.status != Reservation.Status.CONFIRMED:
                 raise ValueError("Only confirmed statuses can be canceled")
 
             reservation_found.status = Reservation.Status.CANCELED
             await session.commit()
-            return cls.model_validate(reservation_found.dict(), from_attributes=True)
+            return ReservationWithRelations.model_validate(
+                reservation_found.dict(), from_attributes=True
+            )
         except Exception as e:
             raise e

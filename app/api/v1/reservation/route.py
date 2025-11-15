@@ -4,19 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
 from app.core.pagination import PaginatedResult
-from app.services.reservation import Reservation, ReservationCreate
+from app.services.reservation import Reservation, ReservationCreate, ReservationWithRelations
 from app.services.role import UserRoles
 from app.services.user.user_base import UserBase
 
 from app.redis import get_redis_client, RedisClient
-
+from app.core.schema import AppResponse
 
 router = APIRouter(prefix="/reservations", tags=["Reservation"])
 
 
 @router.post(
     "/hold-seat",
-    response_model=Reservation,
+    response_model=AppResponse[ReservationWithRelations],
     description="""        
         Initial preservation of the seat with status HELD:
 
@@ -28,18 +28,20 @@ async def create_held_reservation(
     session: AsyncSession = Depends(get_async_session),
     redis_client: RedisClient = Depends(get_redis_client),
     user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER)),
-):
+) -> AppResponse[ReservationWithRelations]:
     """
     - Role: Temporary Inventory Lock for seat selection/checkout.
     - Primary Trigger: User selects seats and proceeds to payment (starts a timer).
     - Inventory/Seat Status: Temporarily Blocked (Released upon timer expiration).
     """
-    return await Reservation.create_held(session, data, user.id, redis_client)
+    return AppResponse.create_response(
+        await Reservation.create_held(session, data, user.id, redis_client)
+    )
 
 
 @router.patch(
     "/confirm-seat/{reservation_id:path}",
-    response_model=Reservation,
+    response_model=AppResponse[ReservationWithRelations],
 )
 async def update_reservation_confirmed(
     reservation_id: int,
@@ -50,39 +52,45 @@ async def update_reservation_confirmed(
         default=None,
         description="Payment processor result id for a reservation payment",
     ),
-):
-    return await Reservation.update_confirmed(
-        session, reservation_id, user.id, redis_client, payment_id
+) -> AppResponse[ReservationWithRelations]:
+    return AppResponse.create_response(
+        await Reservation.update_confirmed(
+            session, reservation_id, user.id, redis_client, payment_id
+        )
     )
 
 
 @router.patch(
     "/no-show/{reservation_id:path}",
-    response_model=Reservation,
+    response_model=AppResponse[ReservationWithRelations],
     dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))],
 )
 async def update_reservation_no_show(
     reservation_id: int,
     session: AsyncSession = Depends(get_async_session),
-):
-    return await Reservation.update_no_show(session, reservation_id)
+) -> AppResponse[ReservationWithRelations]:
+    return AppResponse.create_response(
+        await Reservation.update_no_show(session, reservation_id)
+    )
 
 
 @router.patch(
     "/cancel/{reservation_id:path}",
-    response_model=Reservation,
+    response_model=AppResponse[ReservationWithRelations],
 )
 async def update_reservation_canceled(
-    reservation_id: int, 
+    reservation_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER))
-):
-    return await Reservation.update_canceled(session, reservation_id, user.id)
+    user: UserBase = Depends(ValidateJwt(UserRoles.REGULAR_USER)),
+) -> AppResponse[ReservationWithRelations]:
+    return AppResponse.create_response(
+        await Reservation.update_canceled(session, reservation_id, user.id)
+    )
 
 
 @router.get(
     "/my-reservations",
-    response_model=PaginatedResult[Reservation],
+    response_model=AppResponse[PaginatedResult[ReservationWithRelations]],
 )
 async def get_my_reservations(
     session: AsyncSession = Depends(get_async_session),
@@ -90,17 +98,19 @@ async def get_my_reservations(
     pagination: Reservation.Pagination = Query(
         description="Paginate reservations for a user",
     ),
-):
-    return await Reservation.get_all(
-        session,
-        pagination=pagination,
-        where_clause=[Reservation.model.user_id == user.id],
+) -> AppResponse[PaginatedResult[ReservationWithRelations]]:
+    return AppResponse.create_response(
+        await Reservation.get_all(
+            session,
+            pagination=pagination,
+            where_clause=[Reservation.model.user_id == user.id],
+        )
     )
 
 
 @router.get(
     "/",
-    response_model=PaginatedResult[Reservation],
+    response_model=AppResponse[PaginatedResult[ReservationWithRelations]],
     dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))],
 )
 async def get_reservations(
@@ -108,5 +118,7 @@ async def get_reservations(
     pagination: Reservation.Pagination = Query(
         description="Paginate your reservations results",
     ),
-):
-    return await Reservation.get_all(session, pagination=pagination)
+) -> AppResponse[PaginatedResult[ReservationWithRelations]]:
+    return AppResponse.create_response(
+        await Reservation.get_all(session, pagination=pagination)
+    )

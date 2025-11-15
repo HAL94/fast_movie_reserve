@@ -21,3 +21,10 @@ Reservation Management (Regular and Admin User):
 	- Reserve seats for a show-time, see available seats.
 	- See reservations and/or cancel upcoming reservation.
 	- Admin user should be able to see all reservations, capacity and revenue.
+
+Reservation Cancellation:
+	- If 30 minutes left until show-time, it is not possible to cancel the reservation. Otherwise, allow cancellation and proceed with refunding.
+
+Reservation Auditing:
+	- If the customer does not check-in for the movie, and showtime has ended, reservation is marked as NO-SHOW, and no further operations can be performed on it.
+	- If the customer do check-in, reservation should be marked as COMPLETED and no further operations can be performed on it.

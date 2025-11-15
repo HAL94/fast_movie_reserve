@@ -8,7 +8,6 @@ from app.models import Seat as SeatModel
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.reservation import Reservation
 from app.services.showtime import Showtime
 
 logger = logging.getLogger(__name__)
@@ -30,6 +29,7 @@ class Seat(BaseModelDatabaseMixin):
     async def get_available_seats_by_showtime(
         cls, session: AsyncSession, showtime_id: int, pagination: SeatPagination
     ):
+        from app.services.reservation import Reservation
         showtime = await Showtime.get_one(session, showtime_id, field=Showtime.model.id)
 
         theatre_id = showtime.theatre_id

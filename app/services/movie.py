@@ -9,6 +9,8 @@ from app.models import Movie as MovieModel
 
 from app.services.genre import Genre
 from app.services.movie_genre import MovieGenre
+from app.core.schema import AppBaseModel
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,7 +18,24 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class Movie(BaseModelDatabaseMixin):
+class MovieCreate(AppBaseModel):
+    genres: Optional[list[Genre]] = []
+    title: str
+    description: str
+    rating: int
+    image_url: str
+
+
+class MovieUpdate(AppBaseModel):
+    id: Optional[int] = None
+    genres: Optional[list[Genre]] = None
+    title: str
+    description: str
+    rating: int
+    image_url: str
+
+
+class MovieBase(BaseModelDatabaseMixin):
     model: ClassVar[type[MovieModel]] = MovieModel
 
     id: Optional[int] = None
@@ -29,19 +48,20 @@ class Movie(BaseModelDatabaseMixin):
         pass
 
 
-class MovieWithGenres(Movie):
+class MovieWithGenres(MovieBase):
+    @classmethod
+    def relations(cls):
+        return [selectinload(cls.model.genres)]
+
     genres: list[Genre]
 
 
-class MovieUpdate(Movie):
-    id: Optional[int] = None
-    genres: Optional[list[Genre]] = None
-
+class Movie(MovieBase):
     @classmethod
     async def update_one(
         cls,
         session: AsyncSession,
-        data: "MovieUpdate",
+        data: MovieUpdate,
         /,
         *,
         commit: bool = True,
@@ -97,14 +117,12 @@ class MovieUpdate(Movie):
             if return_as_base:
                 return updated_movie
 
-            return MovieUpdate(**updated_movie.dict(), genres=genres)
+            return MovieWithGenres.model_validate(
+                {**updated_movie.dict(), "genres": genres}, from_attributes=True
+            )
 
         except Exception as e:
             raise e
-
-
-class MovieCreate(Movie):
-    genres: Optional[list[Genre]] = None
 
     @classmethod
     async def create(
@@ -142,7 +160,7 @@ class MovieCreate(Movie):
                 session,
                 where_clause=[Genre.model.title.in_([g.title for g in data.genres])],
             )
-            
+
             movie_genres = []
             for genre in genres:
                 movie_genres.append(
@@ -157,9 +175,7 @@ class MovieCreate(Movie):
             if return_as_base:
                 return created_movie
 
-            movie_with_genres = await MovieWithGenres.get_one(
-                session, created_movie.id, options=[selectinload(cls.model.genres)]
-            )
+            movie_with_genres = await MovieWithGenres.get_one(session, created_movie.id)
 
             return movie_with_genres
         except Exception as e:

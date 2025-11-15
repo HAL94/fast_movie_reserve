@@ -94,6 +94,8 @@ class Seat(Base):
     seat_number: Mapped[str] = mapped_column(VARCHAR(64))
     level: Mapped[str] = mapped_column()
 
+    reservations: Mapped[list["Reservation"]] = relationship(back_populates="seat")
+
 
 class Showtime(Base):
     __tablename__ = "showtimes"
@@ -108,6 +110,8 @@ class Showtime(Base):
     movie: Mapped[Movie] = relationship(back_populates="showtimes")
     theatre: Mapped[Theatre] = relationship(back_populates="showtimes")
 
+    reservations: Mapped[list["Reservation"]] = relationship(back_populates="showtime")
+
 
 class Reservation(Base):
     __tablename__ = "reservations"
@@ -115,8 +119,13 @@ class Reservation(Base):
     show_time_id: Mapped[int] = mapped_column(
         ForeignKey("showtimes.id"), nullable=False
     )
+    showtime: Mapped["Showtime"] = relationship(back_populates="reservations")
+
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
     seat_id: Mapped[int] = mapped_column(ForeignKey("seats.id"), nullable=False)
+    seat: Mapped[Seat] = relationship(back_populates="reservations")
+
     status: Mapped[str] = mapped_column(VARCHAR(64))
     is_paid: Mapped[bool] = mapped_column()
     is_refunded: Mapped[bool] = mapped_column()

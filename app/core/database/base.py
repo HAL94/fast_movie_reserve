@@ -117,7 +117,8 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     )
 
     def dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return self.__dict__
+
 
     @override
     def __repr__(self) -> str:
@@ -212,10 +213,7 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                     for item in data
                 ]
             statement = insert(cls).returning(cls)
-            return await session.scalars(
-                statement,
-                payload
-            )
+            return await session.scalars(statement, payload)
         except IntegrityError as e:
             await session.rollback()
             raise e

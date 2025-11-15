@@ -12,9 +12,15 @@ from fastapi import HTTPException
 from .utils import CreateModelRelations
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
+from app.core.exceptions import NotFoundException
+
 
 class BaseModelDatabaseMixin(AppBaseModel, ABC):
     model: ClassVar[type[Base]]
+
+    @classmethod
+    def relations(cls):
+        return []
 
     @classmethod
     async def create(
@@ -112,13 +118,16 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
     ):
         try:
+            if not options:
+                options = cls.relations()
+
             if not pagination:
                 result = await cls.model.get_all(
                     session,
                     where_clause=where_clause,
                     order_clause=order_clause,
                     options=options,
-                    limit=limit
+                    limit=limit,
                 )
 
                 if return_as_base:
@@ -129,7 +138,7 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 ]
 
             pagination_where_clause = pagination.filter_fields
-            pagination_order_clause = pagination.sort_fields            
+            pagination_order_clause = pagination.sort_fields
             page = pagination.page
             size = pagination.size
 
@@ -167,8 +176,19 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         return_as_base: bool = False,
         raise_not_found: bool = True,
     ) -> Self:
+        current_options = []
+        current_options.extend(cls.relations())
+
+        if options is not None:
+            current_options.extend(options)
+        
+
         result: Base = await cls.model.get_one(
-            session, val, field=field, where_clause=where_clause, options=options
+            session,
+            val,
+            field=field,
+            where_clause=where_clause,
+            options=current_options,
         )
         if not result and raise_not_found:
             raise HTTPException(status_code=404, detail="Not found")
@@ -225,6 +245,9 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
 
             if return_as_base:
                 return result
+
+            if not result:
+                raise NotFoundException()
 
             return cls.model_validate(result, from_attributes=True)
         except Exception as e:

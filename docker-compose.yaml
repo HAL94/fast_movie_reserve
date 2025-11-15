@@ -31,6 +31,23 @@ services:
         condition: service_healthy
     networks:
       - fmr_network
+  
+  seeding:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # The command to execute the seeds
+    command: ["uv", "run", "-m", "app.seed"]
+
+    # This service should not restart after it has successfully completed its job
+    restart: "no"
+    env_file:
+      - ./.env
+    depends_on:
+      - postgres
+      - migration
+    networks:
+      - fmr_network
 
   postgres:
     image: postgres:17.4-alpine3.21
@@ -42,7 +59,7 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data:z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d movies"]
       interval: 10s
@@ -68,8 +85,8 @@ services:
       RABBITMQ_DEFAULT_USER: rabbit
       RABBITMQ_DEFAULT_PASS: rabbit    
     volumes:
-      - ./rabbitmq-lib:/var/lib/rabbitmq
-      - ./rabbitmq-log:/var/log/rabbitmq
+      - ./rabbitmq-lib:/var/lib/rabbitmq:z
+      - ./rabbitmq-log:/var/log/rabbitmq:z
     networks:
       - fmr_network
   
