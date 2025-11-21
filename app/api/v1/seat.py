@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database.session import get_async_session
+
 from app.services.seat import Seat
+
 from app.core.schema import AppResponse
 from app.core.pagination import PaginatedResult
 
 
-router = APIRouter(prefix="/seats", tags=["Seats"])
+seat_router = APIRouter(prefix="/seats", tags=["Seats"])
 
 
-@router.get("/{showtime_id}", response_model=AppResponse[PaginatedResult[Seat]])
+@seat_router.get("/{showtime_id}", response_model=AppResponse[PaginatedResult[Seat]])
 async def get_seats(
     showtime_id: int = Path(...),
     session: AsyncSession = Depends(get_async_session),

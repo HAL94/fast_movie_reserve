@@ -1,11 +1,5 @@
-from typing import ClassVar, Optional
-from app.core.database.mixin import BaseModelDatabaseMixin
-from app.models import Theatre as TheatreModel
+from app.domain.theatre import TheatreBase
 
 
-class Theatre(BaseModelDatabaseMixin):
-    model: ClassVar[type[TheatreModel]] = TheatreModel
-
-    id: Optional[int]
-    theatre_number: str
-    capacity: int
+class Theatre(TheatreBase):
+    pass

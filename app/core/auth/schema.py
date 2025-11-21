@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-
-from app.services import UserRoles
+from app.constants import UserRoles
 
 class JwtPayload(BaseModel):
     id: int

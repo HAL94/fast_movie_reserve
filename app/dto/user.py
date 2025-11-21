@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from app.core.schema import BaseModel
 
 
 class UserCredentials(BaseModel):
@@ -11,6 +11,7 @@ class SignupRequest(BaseModel):
     email: str
     age: int
     password: str
+
 
 class SigninResult(BaseModel):
     token: str

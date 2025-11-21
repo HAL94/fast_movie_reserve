@@ -3,7 +3,7 @@ from typing import Any, ClassVar, Literal, Self, Union
 from pydantic import BaseModel
 
 from app.core.pagination.factory import PaginationQuery
-from app.core.schema import AppBaseModel
+from app.core.schema import BaseModel as AppBaseModel
 from .base import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement

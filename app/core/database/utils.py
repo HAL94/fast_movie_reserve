@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 
 class CreateModelRelations:
+    """A helper class that when given a model, will attempt to create it along with its relations"""
+
     def __init__(self, model: type[Base]):
         self.model = model
 

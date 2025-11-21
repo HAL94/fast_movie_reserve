@@ -11,6 +11,8 @@ from .url import DATABASE_URL
 
 
 class SessionManager:
+    """SQLAlchemy Database Session Connection Wrapper class"""
+
     def __init__(self, host: URL, /, *, kwargs: dict[str, Any] | None = None) -> None:
         if kwargs is None:
             kwargs = {}
@@ -54,6 +56,7 @@ session_manager: SessionManager = SessionManager(
         "echo": False,
     },
 )
+
 
 async def get_async_session():
     async with session_manager.session() as session:

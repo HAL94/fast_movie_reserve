@@ -32,49 +32,6 @@ from app.core.pagination import PaginatedResult
 class DeclarativeBaseNoMeta(_DeclarativeBaseNoMeta):
     pass
 
-
-"""
-
-TL;DR, this will allow you to write select statements as follows:
-MyModel.select_(...)
-
-instead of:
-
-from sqlalchemy import select
-select(MyModel)
-
-Why So Many Types?
-SQLAlchemy's select() function is incredibly flexible - 
-it accepts columns, expressions, functions, entire tables, and more. 
-This tuple tries to capture all the valid possibilities while maintaining type safety.
-
-1. TypedColumnsClauseRole[Any]
-What it is: Represents database columns that have specific type information
-Example: When you define User.name: str, this type tracks that it's a string column
-Use case: select(User.name) where SQLAlchemy knows name returns strings
-
-2. ColumnsClauseRole
-What it is: Generic database columns without specific type info
-Example: Raw column references or dynamically created columns
-Use case: select(column('some_column')) where type isn't predetermined
-
-3. SQLCoreOperations[Any]
-What it is: SQL operations and expressions (functions, calculations, etc.)
-Example: func.count(), User.age + 1, case() statements
-Use case: select(func.count(User.id)) - SQL functions and computed values
-
-4. Inspectable[_HasClauseElement[Any]]
-What it is: Objects that can be "inspected" to extract SQL elements
-Example: Table objects, mapped classes
-Use case: select(User) - passing the entire model class
-
-5. _HasClauseElement[Any]
-What it is: Objects that contain or can produce SQL clause elements
-Example: Hybrid properties, custom SQL expressions
-Use case: Custom properties that generate SQL when accessed
-"""
-
-
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
     def select_(

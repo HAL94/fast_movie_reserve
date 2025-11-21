@@ -4,17 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth.jwt import ValidateJwt
 from app.core.database.session import get_async_session
 from app.core.pagination import PaginatedResult
+
+from app.domain.user import UserBase
+
 from app.services.reservation import Reservation, ReservationCreate, ReservationWithRelations
-from app.services.role import UserRoles
-from app.services.user.user_base import UserBase
+
+from app.constants import UserRoles
 
 from app.redis import get_redis_client, RedisClient
 from app.core.schema import AppResponse
 
-router = APIRouter(prefix="/reservations", tags=["Reservation"])
+reservation_router = APIRouter(prefix="/reservations", tags=["Reservation"])
 
 
-@router.post(
+@reservation_router.post(
     "/hold-seat",
     response_model=AppResponse[ReservationWithRelations],
     description="""        
@@ -39,7 +42,7 @@ async def create_held_reservation(
     )
 
 
-@router.patch(
+@reservation_router.patch(
     "/confirm-seat/{reservation_id:path}",
     response_model=AppResponse[ReservationWithRelations],
 )
@@ -60,7 +63,7 @@ async def update_reservation_confirmed(
     )
 
 
-@router.patch(
+@reservation_router.patch(
     "/no-show/{reservation_id:path}",
     response_model=AppResponse[ReservationWithRelations],
     dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))],
@@ -74,7 +77,7 @@ async def update_reservation_no_show(
     )
 
 
-@router.patch(
+@reservation_router.patch(
     "/cancel/{reservation_id:path}",
     response_model=AppResponse[ReservationWithRelations],
 )
@@ -88,7 +91,7 @@ async def update_reservation_canceled(
     )
 
 
-@router.get(
+@reservation_router.get(
     "/my-reservations",
     response_model=AppResponse[PaginatedResult[ReservationWithRelations]],
 )
@@ -108,7 +111,7 @@ async def get_my_reservations(
     )
 
 
-@router.get(
+@reservation_router.get(
     "/",
     response_model=AppResponse[PaginatedResult[ReservationWithRelations]],
     dependencies=[Depends(ValidateJwt(UserRoles.ADMIN))],

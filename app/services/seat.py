@@ -1,35 +1,26 @@
 import logging
-from typing import ClassVar, Optional
-
 from sqlalchemy import select
-from app.core.database.mixin import BaseModelDatabaseMixin
-from app.core.pagination.factory import PaginationFactory
-from app.models import Seat as SeatModel
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.showtime import Showtime
+from app.core.pagination import PaginatedResult
+
+from app.domain.showtime import ShowtimeBase as Showtime
+from app.domain.seat import SeatBase
+from app.domain.reservation import ReservationBase as Reservation
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class Seat(BaseModelDatabaseMixin):
-    model: ClassVar[type[SeatModel]] = SeatModel
-
-    id: Optional[int]
-    theatre_id: int
-    seat_number: str
-    level: str
-
-    class SeatPagination(PaginationFactory.create(SeatModel)):
-        pass
-
+class Seat(SeatBase):
     @classmethod
     async def get_available_seats_by_showtime(
-        cls, session: AsyncSession, showtime_id: int, pagination: SeatPagination
-    ):
-        from app.services.reservation import Reservation
+        cls,
+        session: AsyncSession,
+        showtime_id: int,
+        pagination: SeatBase.SeatPagination,
+    ) -> PaginatedResult[SeatBase]:
         showtime = await Showtime.get_one(session, showtime_id, field=Showtime.model.id)
 
         theatre_id = showtime.theatre_id

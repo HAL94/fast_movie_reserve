@@ -1,18 +1,24 @@
 import logging
 import traceback
 
-from fastapi import HTTPException, status
-from app.core.auth.jwt import JwtAuth
-from app.core.auth.schema import JwtPayload
-from app.services.role import Role, UserRoles
-
-from .user_base import UserBase, UserCreate
-from .utils import SigninResult, SignupRequest, UserCredentials
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models import User as UserModel
+
+from fastapi import HTTPException, status
+
+from app.services.role import Role
+
+from app.constants import UserRoles
+
+from app.domain.user import UserBase, UserCreate
+from app.dto.user import SigninResult, SignupRequest, UserCredentials
+
+from app.core.auth.jwt import JwtAuth
+from app.core.auth.schema import JwtPayload
 from app.core.auth.cookie import cookie_signer
+
+from app.models import User as UserModel
+
 from pwdlib import PasswordHash
 
 logger = logging.getLogger(__name__)

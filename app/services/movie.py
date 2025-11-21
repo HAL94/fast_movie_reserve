@@ -1,59 +1,19 @@
 import logging
 import traceback
-from typing import ClassVar, Optional
+
 from fastapi import HTTPException
 
-from app.core.database.mixin import BaseModelDatabaseMixin
-from app.core.pagination.factory import PaginationFactory
 from app.models import Movie as MovieModel
 
 from app.services.genre import Genre
 from app.services.movie_genre import MovieGenre
-from app.core.schema import AppBaseModel
+from app.domain.movie import MovieBase, MovieWithGenres
+from app.dto.movie import MovieCreateDto, MovieUpdateDto
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-class MovieCreate(AppBaseModel):
-    genres: Optional[list[Genre]] = []
-    title: str
-    description: str
-    rating: int
-    image_url: str
-
-
-class MovieUpdate(AppBaseModel):
-    id: Optional[int] = None
-    genres: Optional[list[Genre]] = None
-    title: str
-    description: str
-    rating: int
-    image_url: str
-
-
-class MovieBase(BaseModelDatabaseMixin):
-    model: ClassVar[type[MovieModel]] = MovieModel
-
-    id: Optional[int] = None
-    title: str
-    description: str
-    rating: int
-    image_url: str
-
-    class MoviePagination(PaginationFactory.create(MovieModel)):
-        pass
-
-
-class MovieWithGenres(MovieBase):
-    @classmethod
-    def relations(cls):
-        return [selectinload(cls.model.genres)]
-
-    genres: list[Genre]
 
 
 class Movie(MovieBase):
@@ -61,12 +21,12 @@ class Movie(MovieBase):
     async def update_one(
         cls,
         session: AsyncSession,
-        data: MovieUpdate,
+        data: MovieUpdateDto,
         /,
         *,
         commit: bool = True,
         return_as_base: bool = False,
-    ):
+    ) -> MovieWithGenres:
         try:
             updated_movie: MovieModel = await super().update_one(
                 session,
@@ -128,12 +88,12 @@ class Movie(MovieBase):
     async def create(
         cls,
         session: AsyncSession,
-        data: "MovieCreate",
+        data: MovieCreateDto,
         /,
         *,
         commit: bool = True,
         return_as_base: bool = False,
-    ):
+    ) -> MovieWithGenres:
         try:
             created_movie: MovieModel = await super().create(
                 session,
@@ -181,3 +141,26 @@ class Movie(MovieBase):
         except Exception as e:
             logger.info(f"Error in creating movie: {traceback.format_exc()}")
             raise e
+
+    @classmethod
+    async def get_one(
+        cls,
+        session,
+        val,
+        /,
+        *,
+        field=None,
+        where_clause=None,
+        options=None,
+        return_as_base=False,
+        raise_not_found=True,
+    ) -> MovieWithGenres:
+        return await MovieWithGenres.get_one(
+            session,
+            val,
+            field=field,
+            where_clause=where_clause,
+            options=options,
+            return_as_base=return_as_base,
+            raise_not_found=raise_not_found,
+        )
