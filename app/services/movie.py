@@ -46,9 +46,12 @@ class Movie(MovieBase):
                 raise HTTPException(status_code=404, detail="Could not find movie")
 
             genre_index = [Genre.model.title]
-
             genres = await Genre.upsert_many(
-                session, data.genres, genre_index, commit=False, return_as_base=False
+                session,
+                data.genres,
+                genre_index,
+                commit=False,
+                on_conflict="do_nothing",
             )
 
             updated_genres = []
@@ -61,14 +64,22 @@ class Movie(MovieBase):
                 )
 
             movie_genres_where_clause = [MovieGenre.model.movie_id == updated_movie.id]
-            if data.genres is not None:
+            if data.genres is not None and len(data.genres) == 0:
+                # User omitted genres
                 await MovieGenre.delete_many(
                     session, movie_genres_where_clause, commit=False
                 )
 
-            movie_genre_index = [MovieGenre.model.genre_id, MovieGenre.model.movie_id]
+            movie_genre_index = [
+                MovieGenre.model.genre_id,
+                MovieGenre.model.movie_id,
+            ]
             await MovieGenre.upsert_many(
-                session, updated_genres, movie_genre_index, on_conflict="do_nothing"
+                session,
+                updated_genres,
+                movie_genre_index,
+                commit=False,
+                on_conflict="do_nothing",
             )
 
             if commit:
@@ -77,9 +88,7 @@ class Movie(MovieBase):
             if return_as_base:
                 return updated_movie
 
-            return MovieWithGenres.model_validate(
-                {**updated_movie.dict(), "genres": genres}, from_attributes=True
-            )
+            return await MovieWithGenres.get_one(session, updated_movie.id)
 
         except Exception as e:
             raise e

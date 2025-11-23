@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, Union
 from app.core.database.mixin import BaseModelDatabaseMixin
 from app.core.pagination.factory import PaginationFactory
+from app.dto.showtime import ShowtimeCreateDto, ShowtimeUpdateDto
 from app.models import Showtime as ShowtimeModel
 from sqlalchemy.orm import selectinload
 from pydantic import Field
@@ -29,8 +30,13 @@ class ShowtimeBase(BaseModelDatabaseMixin):
         pass
 
     @classmethod
-    async def validate_showtime(cls, session: AsyncSession, data: "ShowtimeBase"):
+    async def validate_showtime(
+        cls, session: AsyncSession, data: Union[ShowtimeCreateDto, ShowtimeUpdateDto]
+    ):
         try:
+            await Theatre.exists(session, data.theatre_id, raise_not_found=True)
+            await Movie.exists(session, data.movie_id, raise_not_found=True)
+
             showtimes: list[ShowtimeBase] = await ShowtimeBase.get_all(
                 session,
                 where_clause=[

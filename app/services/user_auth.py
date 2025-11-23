@@ -10,8 +10,8 @@ from app.services.role import Role
 
 from app.constants import UserRoles
 
-from app.domain.user import UserBase, UserCreate
-from app.dto.user import SigninResult, SignupRequest, UserCredentials
+from app.domain.user import UserBase
+from app.dto.user import SigninResult, SignupRequest, UserCredentials, UserCreate
 
 from app.core.auth.jwt import JwtAuth
 from app.core.auth.schema import JwtPayload
@@ -31,7 +31,9 @@ class UserAuth(UserBase):
     role: Role
 
     @classmethod
-    async def sign_up(cls, session: AsyncSession, signup_data: SignupRequest):
+    async def sign_up(
+        cls, session: AsyncSession, signup_data: SignupRequest
+    ) -> UserBase:
         try:
             found_user = await UserBase.get_one(
                 session, signup_data.email, field=cls.model.email, raise_not_found=False
@@ -61,7 +63,9 @@ class UserAuth(UserBase):
             raise e
 
     @classmethod
-    async def sign_in(cls, session: AsyncSession, credentials: UserCredentials):
+    async def sign_in(
+        cls, session: AsyncSession, credentials: UserCredentials
+    ) -> SigninResult:
         try:
             user_found = await cls.get_one(
                 session,

@@ -1,4 +1,4 @@
-from typing import Callable, Any, Literal, override, Dict, Union
+from typing import Callable, Any, Literal, Optional, override, Dict, Union
 from sqlalchemy import Select, delete, insert, select, func, DateTime, Column, update
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
@@ -31,6 +31,7 @@ from app.core.pagination import PaginatedResult
 
 class DeclarativeBaseNoMeta(_DeclarativeBaseNoMeta):
     pass
+
 
 class DeclarativeAttributeIntercept(_DeclarativeAttributeIntercept):
     @property
@@ -76,7 +77,6 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     def dict(self):
         return self.__dict__
 
-
     @override
     def __repr__(self) -> str:
         return str(self.dict())
@@ -114,6 +114,37 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
     @classmethod
     def columns(cls):
         return {_column.name for _column in inspect(cls).c}
+
+    @classmethod
+    async def exists(
+        cls,
+        session: AsyncSession,
+        val: Optional[Any] = None,
+        /,
+        *,
+        field: Optional[str] = None,
+        where_clause: list[ColumnElement[bool]] = None,
+    ) -> bool:
+        try:
+            if not field:
+                field = cls.id
+
+            where_base = [field == val]
+
+            if where_clause:
+                where_base.extend(where_clause)
+
+            stmt = select(cls).where(*where_base)
+
+            result = await session.execute(stmt)
+
+            result_scalar = result.scalar()
+
+            print(f"Result scalar: {result_scalar}")
+
+            return result_scalar is not None
+        except Exception as e:
+            raise e
 
     @classmethod
     async def create(

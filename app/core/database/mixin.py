@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, ClassVar, Literal, Self, Union
+from typing import Any, ClassVar, Literal, Optional, Self, Union
 from pydantic import BaseModel
 
 from app.core.pagination.factory import PaginationQuery
@@ -21,6 +21,31 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
     @classmethod
     def relations(cls):
         return []
+
+    @classmethod
+    async def exists(
+        cls,
+        session: AsyncSession,
+        id: Any,
+        /,
+        *,
+        field: Optional[str] = None,
+        raise_not_found: bool = False,
+        where_clause: list[ColumnElement[bool]] = None,
+    ) -> bool:
+        try:
+            result = await cls.model.exists(
+                session, id, field=field, where_clause=where_clause
+            )
+
+            if raise_not_found and not result:
+                raise NotFoundException(
+                    message=f"{cls.model.__name__} resource does exist"
+                )
+
+            return result
+        except Exception as e:
+            raise e
 
     @classmethod
     async def create(
@@ -181,7 +206,6 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
 
         if options is not None:
             current_options.extend(options)
-        
 
         result: Base = await cls.model.get_one(
             session,
