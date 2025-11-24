@@ -38,13 +38,16 @@ class ReservationBase(BaseModelDatabaseMixin):
 
         CONFIRMED: User has successfully made a payment, and therefore the state can be converted to CONFIRMED.
 
-        NO_SHOW: User did not attend the movie show.
+        COMPLETE: The show has ended and the user attended.
+
+        NO_SHOW: The show has ended and the user did not attend the show.
 
         CANCELED: User canceled their ticket and a refund process must be started if applicable.
         """
 
         HELD = "HELD"
         CONFIRMED = "CONFIRMED"
+        COMPLETE = "COMPLETE"
         NO_SHOW = "NO_SHOW"
         CANCELED = "CANCELED"
 

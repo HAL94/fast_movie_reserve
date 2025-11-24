@@ -2,7 +2,14 @@ import asyncio
 import logging
 
 from app.core.database.session import session_manager
-from app.services import Genre, Movie, Role, Theatre, Seat, MovieGenre, UserCreate
+from app.services.genre import Genre
+from app.services.movie import Movie 
+from app.services.role import Role
+from app.services.theatre import Theatre
+from app.services.seat import Seat
+from app.services.movie_genre import MovieGenre
+from app.domain.user import UserCreate
+
 from .data import (
     movies_data,
     movie_genre_data,
@@ -16,6 +23,7 @@ from pwdlib import PasswordHash
 import traceback
 
 password_hash = PasswordHash.recommended()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def create_hashed_pw(password: str):

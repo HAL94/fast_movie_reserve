@@ -1,9 +1,14 @@
+from enum import StrEnum
 from typing import Optional
 from pydantic import field_validator
 from app.core.schema import BaseModel
 
+class RevenueType(StrEnum):
+    POTENTIAL = "POTENTIAL"
+    COMPLETE = "COMPLETE"
 
-class PotentialRevenue(BaseModel):
+
+class RevenueRecord(BaseModel):
     movie_title: str
     movie_revenue: float
     tickets_sold: int

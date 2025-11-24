@@ -1,5 +1,14 @@
 from typing import Callable, Any, Literal, Optional, override, Dict, Union
-from sqlalchemy import Select, delete, insert, select, func, DateTime, Column, update
+from sqlalchemy import (
+    Select,
+    delete,
+    insert,
+    select,
+    func,
+    DateTime,
+    Column,
+    update,
+)
 from sqlalchemy.sql.roles import ColumnsClauseRole, TypedColumnsClauseRole
 from sqlalchemy.sql.elements import SQLCoreOperations, ColumnElement
 from sqlalchemy.inspection import Inspectable
@@ -201,6 +210,8 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                     for item in data
                 ]
             statement = insert(cls).returning(cls)
+            if commit:
+                await session.commit()
             return await session.scalars(statement, payload)
         except IntegrityError as e:
             await session.rollback()
@@ -285,7 +296,9 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
 
             statement = statement.limit(limit)
 
-            return await session.scalars(statement)
+            result = await session.scalars(statement)
+
+            return result.all()
         except Exception as e:
             raise e
 
@@ -558,4 +571,50 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
             elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
                 raise ValueError("Foreig Key Constraint is violated")
 
+            raise e
+
+    @classmethod
+    async def update_many_by_id(
+        cls,
+        session: AsyncSession,
+        data: list[BaseModel],
+        /,
+        *,
+        commit: bool = True,
+        where_clause: Optional[list[ColumnElement[bool]]] = None,
+    ):
+        """Update several records"""
+        try:
+            if data is None:
+                raise ValueError("Data passed cannot be None")
+            
+            if isinstance(data, list) and len(data) == 0:
+                return []
+            
+            fields = data[0].model_fields_set
+
+            if "id" not in fields:
+                raise ValueError("Primary Key 'id' not found in fields of passed list")
+
+            if not where_clause:
+                where_clause = []
+
+            stmt = update(cls).where(*where_clause)
+
+            update_ids = []
+            update_items = []
+
+            for item in data:
+                update_items.append(item.model_dump(exclude_none=True, by_alias=False))
+                update_ids.append(getattr(item, "id"))
+
+            await session.execute(
+                stmt, update_items, execution_options={"synchronize_session": None}
+            )
+
+            if commit:
+                await session.commit()
+
+            return await session.scalars(select(cls).where(cls.id.in_(update_ids)))
+        except Exception as e:
             raise e

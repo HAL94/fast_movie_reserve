@@ -17,8 +17,8 @@ class SigninResult(BaseModel):
     token: str
     signed_token: str
 
+
 class UserCreate(BaseModel):
-    id: int
     full_name: str
     email: str
     age: int

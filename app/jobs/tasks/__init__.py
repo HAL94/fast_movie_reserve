@@ -1,3 +1,4 @@
 from .check_confirmed_reservation import check_if_confirmed
+from .complete_reservations import convert_reservations_to_complete
 
-__all__ = [check_if_confirmed]
+__all__ = [check_if_confirmed, convert_reservations_to_complete]

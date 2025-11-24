@@ -326,3 +326,26 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
             return result
 
         return [cls.model_validate(item, from_attributes=True) for item in result]
+
+    @classmethod
+    async def update_many_by_id(
+        cls,
+        session: AsyncSession,
+        data: list[BaseModel],
+        /,
+        *,
+        commit: bool = True,
+        where_clause: Optional[list[ColumnElement[bool]]] = None,
+        return_as_base: bool = False,
+    ):
+        try:
+            result = await cls.model.update_many_by_id(
+                session, data, commit=commit, where_clause=where_clause
+            )
+
+            if return_as_base:
+                return result
+
+            return [cls.model_validate(item, from_attributes=True) for item in result]
+        except Exception as e:
+            raise e

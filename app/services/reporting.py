@@ -5,20 +5,27 @@ from app.domain.movie import MovieBase
 from app.domain.reservation import ReservationBase
 from app.domain.showtime import ShowtimeBase
 
-from app.dto.reporting import PotentialRevenue
+from app.dto.reporting import RevenueRecord, RevenueType
 
 
 class Reporting:
     @classmethod
-    async def get_potential_revenue(
-        cls, session: AsyncSession
-    ) -> list[PotentialRevenue]:
+    async def get_revenue(
+        cls, session: AsyncSession, type: RevenueType = RevenueType.COMPLETE
+    ) -> list[RevenueRecord]:
         try:
+            if type == RevenueType.COMPLETE:
+                reservation_status = ReservationBase.Status.COMPLETE
+            elif type == RevenueType.POTENTIAL:
+                reservation_status = ReservationBase.Status.CONFIRMED
+            else:
+                raise ValueError("Unknown revenue type")
+
             query = (
                 select(
                     MovieBase.model.title,
                     func.sum(ReservationBase.model.final_price).label(
-                        "potential_revenue"
+                        "revenue"
                     ),
                     func.count(ReservationBase.model.id).label("sold_tickets"),
                 )
@@ -31,11 +38,11 @@ class Reporting:
                     ReservationBase.model.show_time_id == ShowtimeBase.model.id,
                 )
                 .where(
-                    ReservationBase.model.status == ReservationBase.Status.CONFIRMED,
+                    ReservationBase.model.status == reservation_status,
                     ReservationBase.model.is_paid,
                 )
                 .group_by(MovieBase.model.title)
-                .order_by(text("potential_revenue DESC"))
+                .order_by(text("revenue DESC"))
             )
 
             result = await session.execute(query)
@@ -46,7 +53,7 @@ class Reporting:
             for report_tuple in report_revenue_potential:
                 movie_title, movie_revenue, tickets_sold = report_tuple
                 revenue_records.append(
-                    PotentialRevenue(
+                    RevenueRecord(
                         movie_title=movie_title,
                         movie_revenue=movie_revenue,
                         tickets_sold=tickets_sold,

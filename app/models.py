@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-from sqlalchemy import VARCHAR, DateTime, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import VARCHAR, DateTime, ForeignKey, Index, UniqueConstraint, func
 from app.core.database.base import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -110,6 +110,8 @@ class Showtime(Base):
     movie: Mapped[Movie] = relationship(back_populates="showtimes")
     theatre: Mapped[Theatre] = relationship(back_populates="showtimes")
 
+    is_processed_for_completion: Mapped[bool] = mapped_column(default=False)
+
     reservations: Mapped[list["Reservation"]] = relationship(back_populates="showtime")
 
 
@@ -130,7 +132,9 @@ class Reservation(Base):
     is_paid: Mapped[bool] = mapped_column()
     is_refunded: Mapped[bool] = mapped_column()
     final_price: Mapped[float] = mapped_column()
-    reserved_at: Mapped[datetime] = mapped_column()
+    reserved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     # Partial Unique Index
     __table_args__ = (

@@ -11,3 +11,6 @@ class UserBase(BaseModelDatabaseMixin):
     email: str
     age: int
     role_id: int
+
+class UserCreate(UserBase):
+    hashed_password: str

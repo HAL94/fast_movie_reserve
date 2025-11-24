@@ -6,6 +6,10 @@ class AppConfigSettings(BaseSettings):
     APP_PORT: int = 8000
     HOST: str = "localhost"
 
+class JobTimingSettings(BaseSettings):
+    INTERVAL: int = 60 * 5 # five minutes
+    OFFSET_DELAY_MINUTES: int = 5
+
 
 class RedisSettings(BaseSettings):
     REDIS_SERVER: str
@@ -52,6 +56,7 @@ class Settings(
     NotificationSettings,
     JwtSettings,
     CookieSettings,
+    JobTimingSettings
 ):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
