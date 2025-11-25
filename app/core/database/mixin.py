@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, ClassVar, Literal, Optional, Self, Union
+from typing import Any, ClassVar, Dict, Literal, Optional, Self, Union
 from pydantic import BaseModel
 
 from app.core.pagination.factory import PaginationQuery
@@ -347,5 +347,33 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
                 return result
 
             return [cls.model_validate(item, from_attributes=True) for item in result]
+        except Exception as e:
+            raise e
+
+    @classmethod
+    async def update_many_by_whereclause(
+        cls,
+        session: AsyncSession,
+        data: Union[BaseModel, Dict[str, Any]],
+        where_clause: list[ColumnElement[bool]],
+        /,
+        *,
+        commit: bool = True,
+        return_as_base: bool = False,
+    ):
+        """
+        Update multiple records based on a condition
+
+        returns:
+            Number of affected rows
+        """
+        try:
+            await cls.model.update_many_by_whereclause(
+                session,
+                data,
+                where_clause,
+                commit=commit,
+            )
+            return None
         except Exception as e:
             raise e

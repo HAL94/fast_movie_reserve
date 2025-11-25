@@ -10,6 +10,7 @@ class RevenueType(StrEnum):
 
 class RevenueRecord(BaseModel):
     movie_title: str
+    movie_id: Optional[int] = None
     movie_revenue: float
     tickets_sold: int
 

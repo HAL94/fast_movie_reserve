@@ -587,10 +587,10 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
         try:
             if data is None:
                 raise ValueError("Data passed cannot be None")
-            
+
             if isinstance(data, list) and len(data) == 0:
                 return []
-            
+
             fields = data[0].model_fields_set
 
             if "id" not in fields:
@@ -616,5 +616,44 @@ class Base(DeclarativeBaseNoMeta, metaclass=DeclarativeAttributeIntercept):
                 await session.commit()
 
             return await session.scalars(select(cls).where(cls.id.in_(update_ids)))
-        except Exception as e:
+        except IntegrityError as e:
+            await session.rollback()
+
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
+            raise e
+
+    @classmethod
+    async def update_many_by_whereclause(
+        cls,
+        session: AsyncSession,
+        data: Union[BaseModel, Dict[str, Any]],
+        where_clause: list[ColumnElement[bool]],
+        /,
+        *,
+        commit: bool = True,
+    ) -> None:
+        try:
+            if isinstance(data, BaseModel):
+                data = data.model_dump(exclude_none=True, by_alias=False)
+
+            stmt = update(cls).where(*where_clause).values(**data)
+
+            await session.execute(stmt)
+
+            if commit:
+                await session.commit()
+
+            return None
+        except IntegrityError as e:
+            await session.rollback()
+
+            if e.orig.sqlstate == UniqueViolationError.sqlstate:
+                raise ValueError("Unique Constraint is Violated")
+            elif e.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise ValueError("Foreig Key Constraint is violated")
+
             raise e

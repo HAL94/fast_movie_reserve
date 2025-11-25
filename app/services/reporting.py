@@ -24,6 +24,7 @@ class Reporting:
             query = (
                 select(
                     MovieBase.model.title,
+                    MovieBase.model.id,
                     func.sum(ReservationBase.model.final_price).label(
                         "revenue"
                     ),
@@ -41,7 +42,7 @@ class Reporting:
                     ReservationBase.model.status == reservation_status,
                     ReservationBase.model.is_paid,
                 )
-                .group_by(MovieBase.model.title)
+                .group_by(MovieBase.model.title, MovieBase.model.id)
                 .order_by(text("revenue DESC"))
             )
 
@@ -51,10 +52,11 @@ class Reporting:
 
             revenue_records = []
             for report_tuple in report_revenue_potential:
-                movie_title, movie_revenue, tickets_sold = report_tuple
+                movie_title, movie_id, movie_revenue, tickets_sold = report_tuple
                 revenue_records.append(
                     RevenueRecord(
                         movie_title=movie_title,
+                        movie_id=movie_id,
                         movie_revenue=movie_revenue,
                         tickets_sold=tickets_sold,
                     )

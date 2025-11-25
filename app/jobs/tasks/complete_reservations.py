@@ -30,56 +30,55 @@ def convert_reservations_to_complete() -> bool:
                     session,
                     where_clause=[
                         Showtime.model.is_processed_for_completion == False,  # noqa: E712
-                        Showtime.model.end_at < datetime.now() - timedelta(minutes=settings.OFFSET_DELAY_MINUTES),
+                        Showtime.model.end_at
+                        < datetime.now()
+                        - timedelta(minutes=settings.OFFSET_DELAY_MINUTES),
                     ],
                     return_as_base=True,
                 )
 
                 logger.info(
-                    f"Got some showtimes for processing: {showtimes_ready_to_process}"
+                    f"Got {len(showtimes_ready_to_process)} showtimes for processing"
                 )
                 if (
                     showtimes_ready_to_process is None
                     or len(showtimes_ready_to_process) == 0
                 ):
                     logger.info(
-                        "[CompleteReservationsJob]: Failed to process job, no show times list object was found...exiting"
+                        "[CompleteReservationsJob]: No showtimes to process...exiting"
                     )
-                    return False
+                    return True
 
+                showtime_ids = []
                 for showtime in showtimes_ready_to_process:
-                    logger.info(f"Showtime model: {showtime}")
+                    showtime_ids.append(showtime.id)
 
-                    reservations_to_transition: list[
-                        Reservation
-                    ] = await Reservation.get_all(
-                        session,
-                        where_clause=[
-                            Reservation.model.status == Reservation.Status.CONFIRMED,
-                            Reservation.model.show_time_id == showtime.id,
-                        ],
-                    )
+                # Update reservation
+                reservation_update_data = {
+                    "status": Reservation.Status.COMPLETE,
+                    "updated_at": datetime.now(),
+                }
+                reservation_where_clause = [
+                    Reservation.model.show_time_id.in_(showtime_ids),
+                    Reservation.model.status == Reservation.Status.CONFIRMED,
+                ]
+                await Reservation.update_many_by_whereclause(
+                    session,
+                    reservation_update_data,
+                    reservation_where_clause,
+                    commit=False,
+                )
 
-                    logger.info(f"Reservations fetched: {reservations_to_transition}")
-
-                    if not reservations_to_transition:
-                        logger.info("Reservations passed are None. Exiting...")
-                        return False
-
-                    for reservation in reservations_to_transition:
-                        reservation.status = Reservation.Status.COMPLETE
-                        logger.info(
-                            f"Reservation with showtime id: {reservation.show_time_id} has been transitioned to: {reservation.status}"
-                        )
-
-                    await Reservation.update_many_by_id(
-                        session, reservations_to_transition, commit=False
-                    )
-
-                    showtime.is_processed_for_completion = True
-
+                # Update showtime
+                showtime_update = {
+                    "is_processed_for_completion": True,
+                    "updated_at": datetime.now(),
+                }
+                showtime_where_clause = [Showtime.model.id.in_(showtime_ids)]
+                await Showtime.update_many_by_whereclause(
+                    session, showtime_update, showtime_where_clause, commit=False
+                )
                 await session.commit()
-
                 return True
         except Exception as e:
             logger.error(
