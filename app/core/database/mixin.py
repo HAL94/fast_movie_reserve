@@ -359,13 +359,12 @@ class BaseModelDatabaseMixin(AppBaseModel, ABC):
         /,
         *,
         commit: bool = True,
-        return_as_base: bool = False,
     ):
         """
         Update multiple records based on a condition
 
         returns:
-            Number of affected rows
+            None
         """
         try:
             await cls.model.update_many_by_whereclause(

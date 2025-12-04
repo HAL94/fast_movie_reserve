@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import traceback
 
 from app.core.database import session_manager
@@ -31,7 +31,7 @@ def convert_reservations_to_complete() -> bool:
                     where_clause=[
                         Showtime.model.is_processed_for_completion == False,  # noqa: E712
                         Showtime.model.end_at
-                        < datetime.now()
+                        < datetime.now(tz=timezone.utc)
                         - timedelta(minutes=settings.OFFSET_DELAY_MINUTES),
                     ],
                     return_as_base=True,

@@ -11,10 +11,10 @@ from app.dto.reporting import RevenueRecord, RevenueType
 class Reporting:
     @classmethod
     async def get_revenue(
-        cls, session: AsyncSession, type: RevenueType = RevenueType.COMPLETE
+        cls, session: AsyncSession, type: RevenueType = RevenueType.REALIZED
     ) -> list[RevenueRecord]:
         try:
-            if type == RevenueType.COMPLETE:
+            if type == RevenueType.REALIZED:
                 reservation_status = ReservationBase.Status.COMPLETE
             elif type == RevenueType.POTENTIAL:
                 reservation_status = ReservationBase.Status.CONFIRMED
@@ -25,9 +25,7 @@ class Reporting:
                 select(
                     MovieBase.model.title,
                     MovieBase.model.id,
-                    func.sum(ReservationBase.model.final_price).label(
-                        "revenue"
-                    ),
+                    func.sum(ReservationBase.model.final_price).label("revenue"),
                     func.count(ReservationBase.model.id).label("sold_tickets"),
                 )
                 .join(

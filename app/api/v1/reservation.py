@@ -123,5 +123,5 @@ async def get_reservations(
     ),
 ) -> AppResponse[PaginatedResult[ReservationWithRelations]]:
     return AppResponse.create_response(
-        await Reservation.get_all(session, pagination=pagination)
+        await Reservation.get_all_with_relations(session, pagination=pagination)
     )

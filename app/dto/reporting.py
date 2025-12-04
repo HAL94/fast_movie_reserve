@@ -5,7 +5,7 @@ from app.core.schema import BaseModel
 
 class RevenueType(StrEnum):
     POTENTIAL = "POTENTIAL"
-    COMPLETE = "COMPLETE"
+    REALIZED = "REALIZED"
 
 
 class RevenueRecord(BaseModel):

@@ -18,7 +18,7 @@ celery = Celery(
 celery.conf.beat_schedule = {
     "check_confirmed_reservations": {
         "task": "app.jobs.tasks.complete_reservations.convert_reservations_to_complete",
-        "schedule": timedelta(seconds=settings.INTERVAL),
+        "schedule": timedelta(seconds=settings.TRANSFORM_TO_COMPLETE_INTERVAL),
     }
 }
 celery.conf.timezone = "UTC"

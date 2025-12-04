@@ -1,15 +1,13 @@
-
 import enum
 from datetime import datetime
 from typing import ClassVar, Optional
 from app.core.database.mixin import BaseModelDatabaseMixin
 from app.core.pagination.factory import PaginationFactory
+from app.dto.seat import SeatDto
+from app.dto.showtime import ShowtimeDto
 from app.models import Reservation as ReservationModel
 
 from pydantic import Field
-from app.domain.showtime import ShowtimeBase as Showtime
-from app.domain.seat import SeatBase as Seat
-
 from sqlalchemy.orm import selectinload
 
 
@@ -67,5 +65,5 @@ class ReservationWithRelations(ReservationBase):
     show_time_id: int = Field(exclude=True)
     seat_id: int = Field(exclude=True)
 
-    showtime: Optional[Showtime] = None
-    seat: Optional[Seat] = None
+    showtime: Optional[ShowtimeDto] = None
+    seat: Optional[SeatDto] = None

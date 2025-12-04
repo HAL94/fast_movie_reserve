@@ -6,9 +6,24 @@ class AppConfigSettings(BaseSettings):
     APP_PORT: int = 8000
     HOST: str = "localhost"
 
-class JobTimingSettings(BaseSettings):
-    INTERVAL: int = 60 * 5 # five minutes
-    OFFSET_DELAY_MINUTES: int = 5
+
+class TransitionReservationToCompleteJobSettings(BaseSettings):
+    """
+    After a show had ended, we will transition all its 'CONFIRMED' reservations to 'COMPLETE'.
+
+    """
+
+    TRANSFORM_TO_COMPLETE_INTERVAL: int = 60 * 5  # run job every 5 minutes
+    OFFSET_DELAY_MINUTES: int = 5  # run job after 5 minutes of show ending
+
+
+class CheckReservationConfirmedJobSettings(BaseSettings):
+    """
+    Settings for the job 'check_if_confirmed' which will check if a reservation is confirmed after offset delay
+    if the user have confirmed their reservation by payment within this offset time, then it will be CONFIRMED
+    """
+
+    HELD_STATUS_TIMER: int = 60
 
 
 class RedisSettings(BaseSettings):
@@ -56,7 +71,8 @@ class Settings(
     NotificationSettings,
     JwtSettings,
     CookieSettings,
-    JobTimingSettings
+    CheckReservationConfirmedJobSettings,
+    TransitionReservationToCompleteJobSettings,
 ):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

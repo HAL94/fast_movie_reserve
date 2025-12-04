@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta
+
+from sqlalchemy import ColumnElement
 from app.jobs.utils import revoke_celery_task
 from app.models import Reservation as ReservationModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+
+from app.core.config import settings
 
 from app.domain.showtime import ShowtimeBase as Showtime
 from app.domain.reservation import ReservationBase, ReservationWithRelations
@@ -50,7 +55,8 @@ class Reservation(ReservationBase):
             )
 
             task_result = check_if_confirmed.apply_async(
-                (created_reservation.id,), eta=datetime.now() + timedelta(seconds=60)
+                (created_reservation.id,),
+                eta=datetime.now() + timedelta(seconds=settings.HELD_STATUS_TIMER),
             )
 
             await redis_client.set(
@@ -151,3 +157,26 @@ class Reservation(ReservationBase):
             )
         except Exception as e:
             raise e
+
+    @classmethod
+    async def get_all_with_relations(
+        cls,
+        session,
+        /,
+        *,
+        pagination=None,
+        where_clause: list[ColumnElement[bool]] = [],
+        order_clause: list[InstrumentedAttribute] | None = [],
+        limit=20,
+        options=None,
+        return_as_base=False,
+    ):
+        return await ReservationWithRelations.get_all(
+            session,
+            pagination=pagination,
+            where_clause=where_clause,
+            order_clause=order_clause,
+            limit=limit,
+            options=options,
+            return_as_base=return_as_base,
+        )
